@@ -14,9 +14,9 @@ In the parent folder, run `python -m cro_dt.cro_dt` with the following parameter
 Concerning optional parameters:
 
 - `--should_cart_init`: True or False. Determines if the initial population should be started with CART trees. This is what separates CRO-DT from CRO-DT (CS), as described in the paper.
-- `--evaluation_scheme`: String. Accepts the following values:
--- `dx`: the matrix encoding proposed in the paper.
--- `tree`: the traditional tree encoding.
+- `--evaluation_scheme`: String. Accepts the following values:  
+  - `dx`: the matrix encoding proposed in the paper.  
+  - `tree`: the traditional tree encoding.
 - `--output_prefix`: String. Defines the prefix appended to the output filename.
 - `--should_save_reports`: True or False. Each simulation, PyCRO-SL generates a pyplot figure with information from the run. If this parameters is true, they will all be saved to folder `results/`.
 - `--start_from`: Integer. Determines if it should pick up from simulation X, instead of beginning from 0. Useful when you want to write a paper but people keep restarting the machine and you don't want to start over from scratch.
