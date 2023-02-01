@@ -1,0 +1,70 @@
+(venv) (base) simul2@simul2-XPS-8950:~/Documentos/Vinicius/PyCRO-SL$ python cart.py --dataset all -s 100 -d 3 -o "results/cart_depth_3.txt" --verbose False
+Dataset: Breast cancer
+Dataset: Breast cancer
+Accuracy in-sample: 0.968 ± 0.009
+Accuracy out-of-sample: 0.947 ± 0.017
+
+Dataset: Car evaluation
+Dataset: Car evaluation
+Accuracy in-sample: 0.780 ± 0.008
+Accuracy out-of-sample: 0.778 ± 0.013
+
+Dataset: Banknote authentication
+Dataset: Banknote authentication
+Accuracy in-sample: 0.935 ± 0.015
+Accuracy out-of-sample: 0.918 ± 0.022
+
+Dataset: Balance scale
+Dataset: Balance scale
+Accuracy in-sample: 0.749 ± 0.028
+Accuracy out-of-sample: 0.688 ± 0.032
+
+Dataset: Acute inflammations 1
+Dataset: Acute inflammations 1
+Accuracy in-sample: 1.000 ± 0.000
+Accuracy out-of-sample: 1.000 ± 0.003
+
+Dataset: Acute inflammations 2
+Dataset: Acute inflammations 2
+Accuracy in-sample: 1.000 ± 0.000
+Accuracy out-of-sample: 0.990 ± 0.026
+
+Dataset: Blood transfusion
+Dataset: Blood transfusion
+Accuracy in-sample: 0.781 ± 0.021
+Accuracy out-of-sample: 0.765 ± 0.014
+
+Dataset: Climate model crashes
+Dataset: Climate model crashes
+Accuracy in-sample: 0.938 ± 0.018
+Accuracy out-of-sample: 0.916 ± 0.015
+
+Dataset: Connectionist bench sonar
+Dataset: Connectionist bench sonar
+Accuracy in-sample: 0.867 ± 0.062
+Accuracy out-of-sample: 0.701 ± 0.063
+
+Dataset: Optical recognition
+Dataset: Optical recognition
+Accuracy in-sample: 0.350 ± 0.081
+Accuracy out-of-sample: 0.346 ± 0.080
+
+Dataset: Drybeans
+Dataset: Drybeans
+Accuracy in-sample: 0.770 ± 0.013
+Accuracy out-of-sample: 0.766 ± 0.014
+
+Dataset: Avila bible
+Dataset: Avila bible
+Accuracy in-sample: 0.531 ± 0.004
+Accuracy out-of-sample: 0.528 ± 0.006
+
+Dataset: Wine quality red
+Dataset: Wine quality red
+Accuracy in-sample: 0.581 ± 0.020
+Accuracy out-of-sample: 0.553 ± 0.021
+
+Dataset: Wine quality white
+Dataset: Wine quality white
+Accuracy in-sample: 0.529 ± 0.010
+Accuracy out-of-sample: 0.519 ± 0.013

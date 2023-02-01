@@ -177,7 +177,7 @@ if __name__ == "__main__":
     popsize = cro_configs["general"]["popSize"]
 
     command_line = str(args)
-    command_line += "\n\npython cro-dt.py " + " ".join([f"--{key} {val}" for (key, val) in args.items()]) + "\n\n---\n\n"
+    command_line += "\n\npython -m cro_dt.cro_dt " + " ".join([f"--{key} {val}" for (key, val) in args.items()]) + "\n\n---\n\n"
     command_line += str(cro_configs)
     curr_time = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
     output_path_summ = f"results/{args['output_prefix']}_{curr_time}_summary.txt"

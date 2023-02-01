@@ -117,14 +117,14 @@ Average elapsed time: 160.082 ± 79,0
 
 DATASET: Optical recognition
 100 simulations executed.
-Average in-sample multivariate accuracy: 35,0 ± 0,6
-Average in-sample univariate accuracy: 35,0 ± 0,6
-Average test multivariate accuracy: 34,4 ± 0,9
-Average test univariate accuracy: 34,4 ± 0,9
+Average in-sample multivariate accuracy: 35,1 ± 0,5
+Average in-sample univariate accuracy: 35,1 ± 0,5
+Average test multivariate accuracy: 34,7 ± 0,8
+Average test univariate accuracy: 34,7 ± 0,8
 
-Best test multivariate accuracy: 35,8
-Best test univariate accuracy: 35,8
-Average elapsed time: 483.270 ± 25.697
+Best test multivariate accuracy: 36,3
+Best test univariate accuracy: 36,3
+Average elapsed time: 309.819 ± 23.575
 --------------------------------------------------
 
 DATASET: Drybeans

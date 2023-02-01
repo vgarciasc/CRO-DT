@@ -1,0 +1,71 @@
+C:\Users\GHEODE\Documents\GitHub\PyCRO-SL(main -> origin)
+λ python cart.py -i all -s 100 -d 2 -o "results/cart_depth_2.txt" --verbose False
+Dataset: Breast cancer
+Dataset: Breast cancer
+Accuracy in-sample: 0.957 ± 0.013
+Accuracy out-of-sample: 0.938 ± 0.017
+
+Dataset: Car evaluation
+Dataset: Car evaluation
+Accuracy in-sample: 0.779 ± 0.007
+Accuracy out-of-sample: 0.778 ± 0.013
+
+Dataset: Banknote authentication
+Dataset: Banknote authentication
+Accuracy in-sample: 0.911 ± 0.013
+Accuracy out-of-sample: 0.894 ± 0.017
+
+Dataset: Balance scale
+Dataset: Balance scale
+Accuracy in-sample: 0.704 ± 0.028
+Accuracy out-of-sample: 0.647 ± 0.035
+
+Dataset: Acute inflammations 1
+Dataset: Acute inflammations 1
+Accuracy in-sample: 0.899 ± 0.045
+Accuracy out-of-sample: 0.867 ± 0.083
+
+Dataset: Acute inflammations 2
+Dataset: Acute inflammations 2
+Accuracy in-sample: 1.000 ± 0.000
+Accuracy out-of-sample: 0.990 ± 0.026
+
+Dataset: Blood transfusion
+Dataset: Blood transfusion
+Accuracy in-sample: 0.764 ± 0.006
+Accuracy out-of-sample: 0.761 ± 0.007
+
+Dataset: Climate model crashes
+Dataset: Climate model crashes
+Accuracy in-sample: 0.922 ± 0.012
+Accuracy out-of-sample: 0.913 ± 0.012
+
+Dataset: Connectionist bench sonar
+Dataset: Connectionist bench sonar
+Accuracy in-sample: 0.800 ± 0.049
+Accuracy out-of-sample: 0.694 ± 0.058
+
+Dataset: Optical recognition
+Dataset: Optical recognition
+Accuracy in-sample: 0.251 ± 0.066
+Accuracy out-of-sample: 0.250 ± 0.065
+
+Dataset: Drybeans
+Dataset: Drybeans
+Accuracy in-sample: 0.553 ± 0.048
+Accuracy out-of-sample: 0.551 ± 0.048
+
+Dataset: Avila bible
+Dataset: Avila bible
+Accuracy in-sample: 0.505 ± 0.004
+Accuracy out-of-sample: 0.502 ± 0.005
+
+Dataset: Wine quality red
+Dataset: Wine quality red
+Accuracy in-sample: 0.566 ± 0.013
+Accuracy out-of-sample: 0.552 ± 0.018
+
+Dataset: Wine quality white
+Dataset: Wine quality white
+Accuracy in-sample: 0.519 ± 0.009
+Accuracy out-of-sample: 0.511 ± 0.011

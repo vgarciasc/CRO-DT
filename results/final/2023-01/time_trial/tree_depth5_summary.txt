@@ -80,12 +80,12 @@ Average elapsed time: 267.085 ± 1.198
 --------------------------------------------------
 
 DATASET: Artificial N=100000, C=10, P=10
-3 simulations executed.
-Average in-sample multivariate accuracy: 0.390 ± 0.004
-Average in-sample univariate accuracy: 0.390 ± 0.004
-Average test multivariate accuracy: 0.388 ± 0.005
-Average test univariate accuracy: 0.388 ± 0.005
+5 simulations executed.
+Average in-sample multivariate accuracy: 0.393 ± 0.004
+Average in-sample univariate accuracy: 0.393 ± 0.004
+Average test multivariate accuracy: 0.392 ± 0.004
+Average test univariate accuracy: 0.392 ± 0.004
 
-Best test multivariate accuracy: 0.395
-Best test univariate accuracy: 0.395
-Average elapsed time: 2678.204 ± 11.354
+Best test multivariate accuracy: 0.396
+Best test univariate accuracy: 0.396
+Average elapsed time: 2683,118 ± 8,654
