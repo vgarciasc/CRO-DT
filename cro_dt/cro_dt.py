@@ -21,6 +21,7 @@ from rich import print
 
 from cro_dt.utils import printv
 import cro_dt.VectorTree as vt
+import cro_dt.cythonfns.TreeEvaluation as cy
 from cro_dt.sup_configs import get_config, load_dataset, artificial_dataset_list, real_dataset_list
 from cro_dt.cart import get_cart_as_W
 
@@ -205,7 +206,9 @@ if __name__ == "__main__":
     elif args["evaluation_scheme"] == "old":
         fitness_evaluation = vt.dt_matrix_fit
     elif args["evaluation_scheme"] == "tree":
-        fitness_evaluation = vt.dt_tree_fit
+        fitness_evaluation = vt.dt_tree_fit_dx
+    elif args["evaluation_scheme"] == "tree_cy":
+        fitness_evaluation = cy.dt_tree_fit
     else:
         print(f"Value '{args['evaluation_scheme']}' for 'evaluation scheme' is invalid.")
         sys.exit(0)
@@ -257,7 +260,7 @@ if __name__ == "__main__":
 
                 def objetive(self, solution):
                     W = get_W_from_solution(solution, depth, n_attributes, args)
-                    accuracy, _ = fitness_evaluation(X_train, y_train, W, depth, n_classes, X_, Y_, M)
+                    accuracy, _ = fitness_evaluation(X_, y_train, W, depth, n_classes, X_, Y_, M)
 
                     if args["univariate"]:
                         return accuracy

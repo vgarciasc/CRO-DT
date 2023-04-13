@@ -106,30 +106,68 @@ def create_nodes_tree_mapper(depth):
     leaves = {x:i for i,x in enumerate(leaves)}
     return inners, leaves
 
-def dt_tree_fit(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, default_label=0):
+# def get_leaf_index_old(x, W, M_i, M_l, depth, verbose=False):
+#     node_idx = 0
+#     curr_depth_2go = depth
+#     trace = []
+#
+#     while curr_depth_2go != 0:
+#         trace += [M_i[node_idx]]
+#         if W[M_i[node_idx]] @ x <= 0:
+#             node_idx += 1
+#         else:
+#             node_idx = node_idx + 2**(curr_depth_2go)
+#         curr_depth_2go -= 1
+#
+#     if verbose:
+#         print(trace)
+#
+#     return M_l[node_idx]
+#
+# def dt_tree_fit_old(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, default_label=0):
+#     n_leaves = len(W) + 1
+#
+#     M_i, M_l = create_nodes_tree_mapper(depth) if M is None else M
+#
+#     count = [np.zeros(n_classes) for _ in range(n_leaves)]
+#
+#     for x_i, y_i in zip(X_, y):
+#         leaf = get_leaf_index_old(x_i, W, M_i, M_l, depth)
+#         count[leaf][y_i] += 1
+#
+#     labels = np.zeros((n_leaves, n_classes))
+#     for leaf, samples in enumerate(count):
+#         labels[leaf][np.argmax(samples)] = 1
+#
+#     accuracy = sum(np.max(np.array(count), axis=1)) / len(X)
+#
+#     return accuracy, labels
+
+def get_leaf_index(X, W, depth):
+    """Returns the index of the leaf node in which the input X falls"""
+    node_idx = 0
+    leaf_idx = 0
+
+    curr_depth = depth - 1
+    while curr_depth >= 0:
+        dot_product = W[node_idx] @ X
+        if dot_product <= 0:
+            node_idx += 1
+        else:
+            node_idx += 2 ** (curr_depth)
+            leaf_idx += 2 ** (curr_depth)
+        curr_depth -= 1
+
+    return leaf_idx
+
+def dt_tree_fit_dx(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, default_label=0):
     n_leaves = len(W) + 1
-
-    M_i, M_l = create_nodes_tree_mapper(depth) if M is None else M
-
-    def get_leaf_idx(x, M_i, M_l):
-        node_idx = 0
-        curr_depth_2go = depth
-        
-        while curr_depth_2go != 0:
-            if W[M_i[node_idx]] @ x <= 0:
-                node_idx += 1
-            else:
-                node_idx = node_idx + 2**(curr_depth_2go)
-            curr_depth_2go -= 1
-        
-        return M_l[node_idx]
-
     count = [np.zeros(n_classes) for _ in range(n_leaves)]
-    
+
     for x_i, y_i in zip(X_, y):
-        leaf = get_leaf_idx(x_i, M_i, M_l)
+        leaf = get_leaf_index(x_i, W, depth)
         count[leaf][y_i] += 1
-    
+
     labels = np.zeros((n_leaves, n_classes))
     for leaf, samples in enumerate(count):
         labels[leaf][np.argmax(samples)] = 1
