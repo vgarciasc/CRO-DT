@@ -12,7 +12,6 @@ from AbsObjetiveFunc import AbsObjetiveFunc
 from CRO_SL import CRO_SL
 from CoralPopulation import Coral
 from SubstrateReal import SubstrateReal
-import pdb
 import time
 import numpy as np
 
@@ -21,6 +20,7 @@ from rich import print
 
 from cro_dt.utils import printv
 import cro_dt.VectorTree as vt
+import cro_dt.CupyTree as cp
 import cro_dt.cythonfns.TreeEvaluation as cy
 from cro_dt.sup_configs import get_config, load_dataset, artificial_dataset_list, real_dataset_list
 from cro_dt.cart import get_cart_as_W
@@ -209,6 +209,8 @@ if __name__ == "__main__":
         fitness_evaluation = vt.dt_tree_fit_dx
     elif args["evaluation_scheme"] == "tree_cy":
         fitness_evaluation = cy.dt_tree_fit
+    elif args["evaluation_scheme"] == "cupy":
+        fitness_evaluation = cp
     else:
         print(f"Value '{args['evaluation_scheme']}' for 'evaluation scheme' is invalid.")
         sys.exit(0)
