@@ -12,7 +12,9 @@ np.import_array()
 # is split using the attribute "x_2"
 cdef get_leaf_index(np.ndarray[np.double_t, ndim=1] X,
                     np.ndarray[np.double_t, ndim=2] W,
-                    np.ndarray[np.int64_t, ndim=1] used_attributes,
+                    np.ndarray[Py_ssize_t, ndim=1] attributes,
+                    np.ndarray[np.double_t, ndim=1] thresholds,
+                    np.ndarray[np.int64_t, ndim=1] inversions,
                     int depth):
 
     cdef Py_ssize_t node_idx = 0
@@ -24,14 +26,11 @@ cdef get_leaf_index(np.ndarray[np.double_t, ndim=1] X,
     cdef Py_ssize_t i
 
     while curr_depth >= 0:
-        i = used_attributes[node_idx]
-        total = W[node_idx][0] + W[node_idx][i] * X[i]
-
-        if total <= 0:
+        if inversions[node_idx] * X[attributes[node_idx]] <= thresholds[node_idx]:
             node_idx += 1
         else:
-            node_idx += 2 ** (curr_depth)
-            leaf_idx += 2 ** (curr_depth)
+            node_idx += 2 ** curr_depth
+            leaf_idx += 2 ** curr_depth
         curr_depth -= 1
 
     return leaf_idx
@@ -83,30 +82,25 @@ def dt_tree_fit(np.ndarray[np.double_t, ndim=2] X, np.ndarray[np.int64_t, ndim=1
     cdef double accuracy
     cdef np.ndarray[np.double_t, ndim=2] count
     cdef np.ndarray[np.int64_t, ndim=1] labels
-    cdef np.ndarray[np.int64_t, ndim=1] used_attributes
     cdef int N = X_.shape[0]
     cdef int P = W.shape[0]
     cdef Py_ssize_t i, j
 
     n_leaves = W.shape[0] + 1
     count = np.zeros((n_leaves, n_classes))
-    used_attributes = np.zeros(n_leaves - 1, dtype=np.int64)
 
-    # Fills the "used_attributes" vector with the index of the attribute used to split the node
-    for i in range(n_leaves - 1):
-        for j in range(1, P): # Skips index 0 because it is always the bias
-            if W[i][j] != 0:
-                used_attributes[i] = j
-                break
+    attributes = np.array([i for w in W for i, val in enumerate(w) if val != 0 and i != 0])
+    thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
+    inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
 
     # Assigns each observation to a leaf and keeps count of the classes in each leaf
     for i in range(N):
-        leaf = get_leaf_index(X_[i], W, used_attributes, depth)
+        leaf = get_leaf_index(X_[i], W, attributes, thresholds, inversions, depth)
         count[leaf][y[i]] += 1
 
-    # accuracy = sum(np.max(np.array(count), axis=1)) / X.shape[0]
-    # labels = np.argmax(count, axis=1)
-    accuracy = get_accuracy(count, N)
-    labels = argmax_loop(count)
+    accuracy = sum(np.max(np.array(count), axis=1)) / X.shape[0]
+    labels = np.argmax(count, axis=1)
+    # accuracy = get_accuracy(count, N)
+    # labels = argmax_loop(count)
 
     return accuracy, labels
