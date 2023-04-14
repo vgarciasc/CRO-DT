@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -23,9 +25,9 @@ cdef get_leaf_index(np.ndarray[np.double_t, ndim=1] X,
     cdef double total
     cdef int P = X.shape[0]
 
-    cdef Py_ssize_t i
-
     while curr_depth >= 0:
+        tic = time.perf_counter_ns()
+
         if inversions[node_idx] * X[attributes[node_idx]] <= thresholds[node_idx]:
             node_idx += 1
         else:
@@ -86,6 +88,7 @@ def dt_tree_fit(np.ndarray[np.double_t, ndim=2] X, np.ndarray[np.int64_t, ndim=1
     cdef int P = W.shape[0]
     cdef Py_ssize_t i, j
 
+    tic = time.perf_counter_ns()
     n_leaves = W.shape[0] + 1
     count = np.zeros((n_leaves, n_classes))
 

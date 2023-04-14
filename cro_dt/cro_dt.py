@@ -1,3 +1,4 @@
+import pdb
 import math
 import argparse
 import copy
@@ -14,26 +15,27 @@ from CoralPopulation import Coral
 from SubstrateReal import SubstrateReal
 import time
 import numpy as np
+import tensorflow as tf
 
 from sklearn.preprocessing import StandardScaler
 from rich import print
 
 from cro_dt.utils import printv
 import cro_dt.VectorTree as vt
-import cro_dt.CupyTree as cp
+# import cro_dt.CupyTree as cp
+import cro_dt.TensorflowTree as tft
 import cro_dt.cythonfns.TreeEvaluation as cy
 from cro_dt.sup_configs import get_config, load_dataset, artificial_dataset_list, real_dataset_list
 from cro_dt.cart import get_cart_as_W
 
-def get_initial_pop(data_config, popsize, X_train, y_train,  
-    should_cart_init, desired_depth, cart_pop_filepath, objfunc):
-
+def get_initial_pop(data_config, popsize, X_train, y_train,
+                    should_cart_init, desired_depth, cart_pop_filepath, objfunc):
     # Creating CART population
     cart_pop = []
     if cart_pop_filepath != None:
         with open(cart_pop_filepath, "rb") as f:
             cart_pops = pickle.load(f)
-        
+
         for (dataset_code, pop) in cart_pops:
             if dataset_code == data_config["code"]:
                 cart_pop = pop
@@ -60,7 +62,7 @@ def get_initial_pop(data_config, popsize, X_train, y_train,
 
         if len(cart_pop) > popsize // 3:
             cart_pop = cart_pop[:popsize // 3]
-    
+
     # Creating mutated CART population
     mutated_cart_pop = []
     for cart in cart_pop:
@@ -74,16 +76,17 @@ def get_initial_pop(data_config, popsize, X_train, y_train,
 
     return cart_pop + mutated_cart_pop + random_pop_continuous
 
+
 def get_W_from_solution(solution, depth, n_attributes, args):
-    W = solution.reshape((2**depth - 1, n_attributes + 1))
+    W = solution.reshape((2 ** depth - 1, n_attributes + 1))
 
     if args["univariate"]:
         W = vt.get_W_as_univariate(W)
 
     if args["should_use_threshold"]:
-        W[:,1:][abs(W[:,1:]) < args["threshold"]] = 0
-        W[:,0][W[:,0] == 0] += 0.01
-    
+        W[:, 1:][abs(W[:, 1:]) < args["threshold"]] = 0
+        W[:, 0][W[:, 0] == 0] += 0.01
+
     return W
 
 def save_histories_to_file(configs, histories, output_path_summary, output_path_full, prefix=""):
@@ -109,12 +112,11 @@ def save_histories_to_file(configs, histories, output_path_summary, output_path_
 
         string_full += "--------------------------------------------------\n\n"
         string_full += f"DATASET: {config['name']}\n"
-        
-        for (elapsed_time, \
-            (scaler), \
-            (multiv_acc_in, multiv_acc_test, multiv_labels, multiv_W), \
-            (univ_acc_in, univ_acc_test, univ_labels, univ_W)) in history:
 
+        for (elapsed_time, \
+             (scaler), \
+             (multiv_acc_in, multiv_acc_test, multiv_labels, multiv_W), \
+             (univ_acc_in, univ_acc_test, univ_labels, univ_W)) in history:
             string_full += f"In-sample:" + "\n"
             string_full += f"        Multivariate accuracy: {multiv_acc_in}" + "\n"
             string_full += f"        Univariate accuracy: {univ_acc_in}" + "\n"
@@ -123,12 +125,14 @@ def save_histories_to_file(configs, histories, output_path_summary, output_path_
             string_full += f"        Univariate accuracy: {univ_acc_test}" + "\n"
             string_full += f"Elapsed time: {elapsed_time}" + "\n"
             string_full += "\n"
-            string_full += "Multivariate tree:\n" + vt.weights2treestr(multiv_W, multiv_labels, config, use_attribute_names=False, scaler=scaler)
+            string_full += "Multivariate tree:\n" + vt.weights2treestr(multiv_W, multiv_labels, config,
+                                                                       use_attribute_names=False, scaler=scaler)
             string_full += f"\n"
             string_full += f"Multivariate labels: {multiv_labels}\n"
             string_full += str(multiv_W)
             string_full += f"\n\n"
-            string_full += "Univariate tree:\n" + vt.weights2treestr(univ_W, univ_labels, config, use_attribute_names=False, scaler=scaler)
+            string_full += "Univariate tree:\n" + vt.weights2treestr(univ_W, univ_labels, config,
+                                                                     use_attribute_names=False, scaler=scaler)
             string_full += f"\n"
             string_full += f"Univariate labels: {univ_labels}\n"
             string_full += str(univ_W)
@@ -140,35 +144,57 @@ def save_histories_to_file(configs, histories, output_path_summary, output_path_
     with open(output_path_full, "w", encoding="utf-8") as text_file:
         text_file.write(string_full)
 
+
 def get_substrates_real(cro_configs):
     substrates = []
     for substrate_real in cro_configs["substrates_real"]:
         substrates.append(SubstrateReal(substrate_real["name"], substrate_real["params"]))
     return substrates
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='CRO-SL for Supervised Tree Induction')
-    parser.add_argument('-i','--dataset', help="What dataset to use?", required=True, type=str)
-    parser.add_argument('-c','--cro_config', help="How many function evaluations to stop at?", required=True, type=str)
-    parser.add_argument('-s','--simulations', help="How many simulations?", required=True, type=int)
-    parser.add_argument('-d','--depth', help="Depth of tree", required=True, type=int)
-    parser.add_argument('--initial_pop', help="File with initial population", required=False, default=None, type=str)
-    parser.add_argument('--univariate', help='Should use univariate tree\'s accuracy when measuring fitness?', required=False, default=True, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--alpha', help="How to penalize tree multivariateness?", required=False, default=1.0, type=float)
-    parser.add_argument('--should_normalize_rows', help='Should normalize rows?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--should_cart_init', help='Should initialize with CART trees?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--should_normalize_dataset', help='Should normalize dataset?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--should_normalize_penalty', help='Should normalize penalty?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--should_get_best_from_validation', help='Should get best solution from validation set?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--should_apply_exponential', help='Should apply exponential penalty?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--should_use_threshold', help='Should ignore weights under a certain threshold?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--threshold', help="Under which threshold should weights be ignored?", required=False, default=0.05, type=float)
-    parser.add_argument('--should_save_reports', help='Should save PCRO-SL reports?', required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('--start_from', help='Should start from where?', required=False, default=0, type=int)
-    parser.add_argument('--evaluation_scheme', help='Which evaluation scheme to use?', required=False, default="dx", type=str)
-    parser.add_argument('--output_prefix', help='Which output name to use?', required=False, default="log", type=str)
-    parser.add_argument('--verbose', help='Is verbose?', required=False, default=True, type=lambda x: (str(x).lower() == 'true'))
-    args = vars(parser.parse_args())
+    # parser = argparse.ArgumentParser(description='CRO-SL for Supervised Tree Induction')
+    # parser.add_argument('-i', '--dataset', help="What dataset to use?", required=True, type=str)
+    # parser.add_argument('-c', '--cro_config', help="How many function evaluations to stop at?", required=True, type=str)
+    # parser.add_argument('-s', '--simulations', help="How many simulations?", required=True, type=int)
+    # parser.add_argument('-d', '--depth', help="Depth of tree", required=True, type=int)
+    # parser.add_argument('--initial_pop', help="File with initial population", required=False, default=None, type=str)
+    # parser.add_argument('--univariate', help='Should use univariate tree\'s accuracy when measuring fitness?',
+    #                     required=False, default=True, type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--alpha', help="How to penalize tree multivariateness?", required=False, default=1.0,
+    #                     type=float)
+    # parser.add_argument('--should_normalize_rows', help='Should normalize rows?', required=False, default=False,
+    #                     type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--should_cart_init', help='Should initialize with CART trees?', required=False, default=False,
+    #                     type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--should_normalize_dataset', help='Should normalize dataset?', required=False, default=False,
+    #                     type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--should_normalize_penalty', help='Should normalize penalty?', required=False, default=False,
+    #                     type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--should_get_best_from_validation', help='Should get best solution from validation set?',
+    #                     required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--should_apply_exponential', help='Should apply exponential penalty?', required=False,
+    #                     default=False, type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--should_use_threshold', help='Should ignore weights under a certain threshold?',
+    #                     required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--threshold', help="Under which threshold should weights be ignored?", required=False,
+    #                     default=0.05, type=float)
+    # parser.add_argument('--should_save_reports', help='Should save PCRO-SL reports?', required=False, default=False,
+    #                     type=lambda x: (str(x).lower() == 'true'))
+    # parser.add_argument('--start_from', help='Should start from where?', required=False, default=0, type=int)
+    # parser.add_argument('--evaluation_scheme', help='Which evaluation scheme to use?', required=False, default="dx",
+    #                     type=str)
+    # parser.add_argument('--output_prefix', help='Which output name to use?', required=False, default="log", type=str)
+    # parser.add_argument('--verbose', help='Is verbose?', required=False, default=True,
+    #                     type=lambda x: (str(x).lower() == 'true'))
+    # args = vars(parser.parse_args())
+
+    args = {'dataset': 'artificial_10000_3_2', 'cro_config': 'configs/time_test.json', 'simulations': 1, 'depth': 6,
+            'initial_pop': 'None', 'univariate': True, 'alpha': 1.0, 'should_normalize_rows': False,
+            'should_cart_init': False, 'should_normalize_dataset': False, 'should_normalize_penalty': False,
+            'should_get_best_from_validation': False, 'should_apply_exponential': False, 'should_use_threshold': False,
+            'threshold': 0.05, 'should_save_reports': False, 'start_from': 0, 'evaluation_scheme': 'cytree',
+            'output_prefix': '_debug', 'verbose': True}
 
     # Initialization
     depth = args["depth"]
@@ -178,12 +204,13 @@ if __name__ == "__main__":
     popsize = cro_configs["general"]["popSize"]
 
     command_line = str(args)
-    command_line += "\n\npython -m cro_dt.cro_dt " + " ".join([f"--{key} {val}" for (key, val) in args.items()]) + "\n\n---\n\n"
+    command_line += "\n\npython -m cro_dt.cro_dt " + " ".join(
+        [f"--{key} {val}" for (key, val) in args.items()]) + "\n\n---\n\n"
     command_line += str(cro_configs)
     curr_time = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
     output_path_summ = f"results/{args['output_prefix']}_{curr_time}_summary.txt"
     output_path_full = f"results/{args['output_prefix']}_{curr_time}_full.txt"
-    
+
     if args['dataset'].startswith("artificial"):
         dataset_list = artificial_dataset_list
     else:
@@ -207,10 +234,12 @@ if __name__ == "__main__":
         fitness_evaluation = vt.dt_matrix_fit
     elif args["evaluation_scheme"] == "tree":
         fitness_evaluation = vt.dt_tree_fit_dx
-    elif args["evaluation_scheme"] == "tree_cy":
+    elif args["evaluation_scheme"] == "cytree":
         fitness_evaluation = cy.dt_tree_fit
     elif args["evaluation_scheme"] == "cupy":
-        fitness_evaluation = cp
+        fitness_evaluation = cp.dt_matrix_fit
+    elif args["evaluation_scheme"] == "tensorflow":
+        fitness_evaluation = tft.dt_matrix_fit_wrapped
     else:
         print(f"Value '{args['evaluation_scheme']}' for 'evaluation scheme' is invalid.")
         sys.exit(0)
@@ -225,15 +254,17 @@ if __name__ == "__main__":
         max_penalty = (n_attributes - 1) * (2 ** depth - 1)
 
         histories.append([])
-        
+
         start_idx = args['start_from'] if data_config == data_configs[0] else 0
         simulations = range(args["simulations"])[start_idx:]
 
         for simulation in simulations:
             # Doing dataset stuff
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=simulation, stratify=y)
-            X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation, stratify=y_test)
-            
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=simulation,
+                                                                stratify=y)
+            X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation,
+                                                            stratify=y_test)
+
             if args["should_normalize_dataset"]:
                 scaler = StandardScaler().fit(X_train)
                 X_train = scaler.transform(X_train)
@@ -241,17 +272,26 @@ if __name__ == "__main__":
                 # X_val = scaler.transform(X_val)
             else:
                 scaler = None
-            
+
             # Preparing matrices that need to be calculated only once
+            X_ = np.vstack((np.ones(len(X_train)).T, X_train.T)).T
+            Y_ = np.tile(y_train, (2 ** depth, 1))
+
             if args["evaluation_scheme"] == "tree":
                 M = vt.create_nodes_tree_mapper(depth)
             else:
                 M = vt.create_mask_dx(depth)
-            X_ = np.vstack((np.ones(len(X_train)).T, X_train.T)).T
-            Y_ = np.tile(y_train, (2**depth, 1))
+
+                if args["evaluation_scheme"] == "tensorflow":
+                    X = tf.convert_to_tensor(X, dtype=tf.float64)
+                    y = tf.convert_to_tensor(y, dtype=tf.int32)
+                    X_ = tf.convert_to_tensor(X_, dtype=tf.float64)
+                    Y_ = tf.convert_to_tensor(Y_, dtype=tf.int32)
+                    M = tf.convert_to_tensor(M, dtype=tf.int32)
 
             print("=" * 50)
-            print(f"[red]Iteration {simulation}/{args['simulations']}[/red] [yellow](dataset: {data_config['name']}, {dataset_id}/{len(data_configs)}):[/yellow]")
+            print(
+                f"[red]Iteration {simulation}/{args['simulations']}[/red] [yellow](dataset: {data_config['name']}, {dataset_id}/{len(data_configs)}):[/yellow]")
             print("=" * 50)
 
             # Creating objective function based on execution parameters
@@ -262,20 +302,21 @@ if __name__ == "__main__":
 
                 def objetive(self, solution):
                     W = get_W_from_solution(solution, depth, n_attributes, args)
-                    accuracy, _ = fitness_evaluation(X_, y_train, W, depth, n_classes, X_, Y_, M)
+                    # accuracy, _ = tft.dt_matrix_fit_wrapped(X_, None, W, depth, n_classes, X_, Y_, M)
+                    accuracy, _ = fitness_evaluation(X_, None, W, depth, n_classes, X_, Y_, M)
 
                     if args["univariate"]:
                         return accuracy
                     else:
-                        penalty = vt.get_penalty(W, max_penalty, alpha=args["alpha"], 
-                            should_normalize_rows=args["should_normalize_rows"], \
-                            should_normalize_penalty=args["should_normalize_penalty"], \
-                            should_apply_exp=args["should_apply_exponential"])
+                        penalty = vt.get_penalty(W, max_penalty, alpha=args["alpha"],
+                                                 should_normalize_rows=args["should_normalize_rows"], \
+                                                 should_normalize_penalty=args["should_normalize_penalty"], \
+                                                 should_apply_exp=args["should_apply_exponential"])
                         return accuracy - penalty
-                
+
                 def random_solution(self):
                     return vt.generate_random_weights(n_attributes, depth)
-                
+
                 def check_bounds(self, solution):
                     return np.clip(solution.copy(), -1, 1)
 
@@ -285,8 +326,8 @@ if __name__ == "__main__":
             # Getting initial population
             args['initial_pop'] = None if args['initial_pop'] == 'None' else args['initial_pop']
             initial_pop = get_initial_pop(data_config, popsize, X_train, y_train,
-                args["should_cart_init"], args["depth"], args["initial_pop"], objfunc)
-            
+                                          args["should_cart_init"], args["depth"], args["initial_pop"], objfunc)
+
             c = CRO_SL(objfunc, get_substrates_real(cro_configs), cro_configs["general"])
             if initial_pop is not None:
                 c.population.population = []
@@ -303,7 +344,7 @@ if __name__ == "__main__":
             _, fit = c.optimize()
             end_time = time.time()
             elapsed_time = end_time - start_time
-            
+
             # Save reports to disk
             if args['should_save_reports']:
                 report_filename = f"results/{args['output_prefix']}_{data_config['code']}_{simulation}.png"
@@ -313,7 +354,7 @@ if __name__ == "__main__":
             # Filter final solution based on validation set
             if args["should_get_best_from_validation"]:
                 final_corals = [coral for coral in c.population.population]
-                final_corals.sort(key = lambda x : x.fitness, reverse=True)
+                final_corals.sort(key=lambda x: x.fitness, reverse=True)
                 aux = []
                 fitnesses = []
                 for coral in final_corals:
@@ -322,43 +363,43 @@ if __name__ == "__main__":
                     aux.append(coral)
                     fitnesses.append(coral.fitness)
                 final_corals = aux
-                final_corals = final_corals[:int(popsize*0.1)] if len(final_corals) > popsize*0.1 else final_corals 
+                final_corals = final_corals[:int(popsize * 0.1)] if len(final_corals) > popsize * 0.1 else final_corals
                 for i, coral in enumerate(final_corals[:25]):
-                    print(f"Coral #{i+1}: (train: {coral.fitness})")
+                    print(f"Coral #{i + 1}: (train: {coral.fitness})")
 
                 X_val_ = np.vstack((np.ones(len(X_val)).T, X_val.T)).T
-                Y_val_ = np.tile(y_val, (2**depth, 1))
+                Y_val_ = np.tile(y_val, (2 ** depth, 1))
                 for coral in final_corals:
                     W = get_W_from_solution(coral.solution, depth, n_attributes, args)
-                    
+
                     accuracy, _ = vt.dt_matrix_fit_dx(X_val, y_val, W, depth, n_classes, X_val_, Y_val_, M)
-                    
+
                     if args["univariate"]:
                         coral.val_fitness = accuracy
                     else:
-                        penalty = vt.get_penalty(W, max_penalty, alpha=args["alpha"], 
-                            should_normalize_rows=args["should_normalize_rows"], \
-                            should_normalize_penalty=args["should_normalize_penalty"], \
-                            should_apply_exp=args["should_apply_exponential"])
+                        penalty = vt.get_penalty(W, max_penalty, alpha=args["alpha"],
+                                                 should_normalize_rows=args["should_normalize_rows"], \
+                                                 should_normalize_penalty=args["should_normalize_penalty"], \
+                                                 should_apply_exp=args["should_apply_exponential"])
                         coral.val_fitness = accuracy - penalty
 
-                final_corals.sort(key = lambda x : x.val_fitness, reverse=True)
+                final_corals.sort(key=lambda x: x.val_fitness, reverse=True)
                 for i, coral in enumerate(final_corals):
-                    print(f"Coral #{i+1}: (train: {coral.fitness}, val: {coral.val_fitness})")
+                    print(f"Coral #{i + 1}: (train: {coral.fitness}, val: {coral.val_fitness})")
 
                 multiv_W = final_corals[0].solution
             else:
                 multiv_W, _ = c.population.best_solution()
 
             # Post-process returned model from CRO-DT
-            multiv_W = multiv_W.reshape((2**depth - 1, n_attributes + 1))
+            multiv_W = multiv_W.reshape((2 ** depth - 1, n_attributes + 1))
             if args["should_use_threshold"]:
-                multiv_W[:,1:][abs(multiv_W[:,1:]) < args["threshold"]] = 0
-                multiv_W[:,0][multiv_W[:,0] == 0] += 0.01
+                multiv_W[:, 1:][abs(multiv_W[:, 1:]) < args["threshold"]] = 0
+                multiv_W[:, 0][multiv_W[:, 0] == 0] += 0.01
             univ_W = vt.get_W_as_univariate(multiv_W)
             if args["univariate"]:
                 multiv_W = vt.get_W_as_univariate(univ_W)
-            
+
             _, multiv_labels = vt.dt_matrix_fit_dx(X_train, y_train, multiv_W, depth, n_classes)
             multiv_acc_in = vt.calc_accuracy(X_train, y_train, multiv_W, multiv_labels)
             multiv_acc_test = vt.calc_accuracy(X_test, y_test, multiv_W, multiv_labels)
@@ -367,11 +408,11 @@ if __name__ == "__main__":
             univ_acc_in = vt.calc_accuracy(X_train, y_train, univ_W, univ_labels)
             univ_acc_test = vt.calc_accuracy(X_test, y_test, univ_W, univ_labels)
 
-            histories[-1].append((elapsed_time, 
-                (scaler), \
-                (multiv_acc_in, multiv_acc_test, multiv_labels, multiv_W), \
-                (univ_acc_in, univ_acc_test, univ_labels, univ_W)))
+            histories[-1].append((elapsed_time,
+                                  (scaler), \
+                                  (multiv_acc_in, multiv_acc_test, multiv_labels, multiv_W), \
+                                  (univ_acc_in, univ_acc_test, univ_labels, univ_W)))
             save_histories_to_file(data_configs, histories, output_path_summ, output_path_full, command_line)
-        
+
         print(f"Saved summary to '{output_path_summ}'.")
         print(f"Saved full data to '{output_path_full}'.")

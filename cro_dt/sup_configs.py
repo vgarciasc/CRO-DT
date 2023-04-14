@@ -187,7 +187,7 @@ config_ART4 = {
 }
 
 config_ART5 = {
-    "code": "artificial_10000_3_10",
+    "code": "artificial_10000_3_2",
     "name": "Artificial N=10000, C=3, P=2",
     "filepath": "datasets/artificial/scikit_N-10000_C-3_P-2.csv",
     "n_attributes": 2,
