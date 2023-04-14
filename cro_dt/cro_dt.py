@@ -237,6 +237,14 @@ if __name__ == "__main__":
         print(f"Value '{args['evaluation_scheme']}' for 'evaluation scheme' is invalid.")
         sys.exit(0)
 
+    if args["evaluation_scheme"] == "tree":
+        M = vt.create_nodes_tree_mapper(depth)
+    else:
+        M = vt.create_mask_dx(depth)
+
+        if args["evaluation_scheme"] == "tensorflow":
+            M = tf.convert_to_tensor(M, dtype=tf.int32)
+
     histories = []
     for dataset_id, data_config in enumerate(data_configs):
         X, y = load_dataset(data_config)
@@ -267,20 +275,12 @@ if __name__ == "__main__":
                 scaler = None
 
             # Preparing matrices that need to be calculated only once
-            X_ = np.vstack((np.ones(len(X_train)).T, X_train.T)).T
-            Y_ = np.tile(y_train, (2 ** depth, 1))
+            X_train_ = np.vstack((np.ones(len(X_train)).T, X_train.T)).T
+            Y_train_ = np.tile(y_train, (2 ** depth, 1))
 
-            if args["evaluation_scheme"] == "tree":
-                M = vt.create_nodes_tree_mapper(depth)
-            else:
-                M = vt.create_mask_dx(depth)
-
-                if args["evaluation_scheme"] == "tensorflow":
-                    X = tf.convert_to_tensor(X, dtype=tf.float64)
-                    y = tf.convert_to_tensor(y, dtype=tf.int32)
-                    X_ = tf.convert_to_tensor(X_, dtype=tf.float64)
-                    Y_ = tf.convert_to_tensor(Y_, dtype=tf.int32)
-                    M = tf.convert_to_tensor(M, dtype=tf.int32)
+            if args["evaluation_scheme"] == "tensorflow":
+                X_train_ = tf.convert_to_tensor(X_train_, dtype=tf.float64)
+                Y_train_ = tf.convert_to_tensor(Y_train_, dtype=tf.int32)
 
             print("=" * 50)
             print(
@@ -295,8 +295,7 @@ if __name__ == "__main__":
 
                 def objetive(self, solution):
                     W = get_W_from_solution(solution, depth, n_attributes, args)
-                    # accuracy, _ = tft.dt_matrix_fit_wrapped(X_, None, W, depth, n_classes, X_, Y_, M)
-                    accuracy, _ = fitness_evaluation(X_, None, W, depth, n_classes, X_, Y_, M)
+                    accuracy, _ = fitness_evaluation(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M)
 
                     if args["univariate"]:
                         return accuracy
