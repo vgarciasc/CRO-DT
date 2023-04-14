@@ -153,48 +153,41 @@ def get_substrates_real(cro_configs):
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='CRO-SL for Supervised Tree Induction')
-    # parser.add_argument('-i', '--dataset', help="What dataset to use?", required=True, type=str)
-    # parser.add_argument('-c', '--cro_config', help="How many function evaluations to stop at?", required=True, type=str)
-    # parser.add_argument('-s', '--simulations', help="How many simulations?", required=True, type=int)
-    # parser.add_argument('-d', '--depth', help="Depth of tree", required=True, type=int)
-    # parser.add_argument('--initial_pop', help="File with initial population", required=False, default=None, type=str)
-    # parser.add_argument('--univariate', help='Should use univariate tree\'s accuracy when measuring fitness?',
-    #                     required=False, default=True, type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--alpha', help="How to penalize tree multivariateness?", required=False, default=1.0,
-    #                     type=float)
-    # parser.add_argument('--should_normalize_rows', help='Should normalize rows?', required=False, default=False,
-    #                     type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--should_cart_init', help='Should initialize with CART trees?', required=False, default=False,
-    #                     type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--should_normalize_dataset', help='Should normalize dataset?', required=False, default=False,
-    #                     type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--should_normalize_penalty', help='Should normalize penalty?', required=False, default=False,
-    #                     type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--should_get_best_from_validation', help='Should get best solution from validation set?',
-    #                     required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--should_apply_exponential', help='Should apply exponential penalty?', required=False,
-    #                     default=False, type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--should_use_threshold', help='Should ignore weights under a certain threshold?',
-    #                     required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--threshold', help="Under which threshold should weights be ignored?", required=False,
-    #                     default=0.05, type=float)
-    # parser.add_argument('--should_save_reports', help='Should save PCRO-SL reports?', required=False, default=False,
-    #                     type=lambda x: (str(x).lower() == 'true'))
-    # parser.add_argument('--start_from', help='Should start from where?', required=False, default=0, type=int)
-    # parser.add_argument('--evaluation_scheme', help='Which evaluation scheme to use?', required=False, default="dx",
-    #                     type=str)
-    # parser.add_argument('--output_prefix', help='Which output name to use?', required=False, default="log", type=str)
-    # parser.add_argument('--verbose', help='Is verbose?', required=False, default=True,
-    #                     type=lambda x: (str(x).lower() == 'true'))
-    # args = vars(parser.parse_args())
-
-    args = {'dataset': 'artificial_10000_3_2', 'cro_config': 'configs/time_test.json', 'simulations': 1, 'depth': 6,
-            'initial_pop': 'None', 'univariate': True, 'alpha': 1.0, 'should_normalize_rows': False,
-            'should_cart_init': False, 'should_normalize_dataset': False, 'should_normalize_penalty': False,
-            'should_get_best_from_validation': False, 'should_apply_exponential': False, 'should_use_threshold': False,
-            'threshold': 0.05, 'should_save_reports': False, 'start_from': 0, 'evaluation_scheme': 'cytree',
-            'output_prefix': '_debug', 'verbose': True}
+    parser = argparse.ArgumentParser(description='CRO-SL for Supervised Tree Induction')
+    parser.add_argument('-i', '--dataset', help="What dataset to use?", required=True, type=str)
+    parser.add_argument('-c', '--cro_config', help="How many function evaluations to stop at?", required=True, type=str)
+    parser.add_argument('-s', '--simulations', help="How many simulations?", required=True, type=int)
+    parser.add_argument('-d', '--depth', help="Depth of tree", required=True, type=int)
+    parser.add_argument('--initial_pop', help="File with initial population", required=False, default=None, type=str)
+    parser.add_argument('--univariate', help='Should use univariate tree\'s accuracy when measuring fitness?',
+                        required=False, default=True, type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--alpha', help="How to penalize tree multivariateness?", required=False, default=1.0,
+                        type=float)
+    parser.add_argument('--should_normalize_rows', help='Should normalize rows?', required=False, default=False,
+                        type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--should_cart_init', help='Should initialize with CART trees?', required=False, default=False,
+                        type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--should_normalize_dataset', help='Should normalize dataset?', required=False, default=False,
+                        type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--should_normalize_penalty', help='Should normalize penalty?', required=False, default=False,
+                        type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--should_get_best_from_validation', help='Should get best solution from validation set?',
+                        required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--should_apply_exponential', help='Should apply exponential penalty?', required=False,
+                        default=False, type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--should_use_threshold', help='Should ignore weights under a certain threshold?',
+                        required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--threshold', help="Under which threshold should weights be ignored?", required=False,
+                        default=0.05, type=float)
+    parser.add_argument('--should_save_reports', help='Should save PCRO-SL reports?', required=False, default=False,
+                        type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--start_from', help='Should start from where?', required=False, default=0, type=int)
+    parser.add_argument('--evaluation_scheme', help='Which evaluation scheme to use?', required=False, default="dx",
+                        type=str)
+    parser.add_argument('--output_prefix', help='Which output name to use?', required=False, default="log", type=str)
+    parser.add_argument('--verbose', help='Is verbose?', required=False, default=True,
+                        type=lambda x: (str(x).lower() == 'true'))
+    args = vars(parser.parse_args())
 
     # Initialization
     depth = args["depth"]
