@@ -1,5 +1,3 @@
-# cython: profile=True
-
 import numpy as np
 cimport numpy as np
 cimport cython
