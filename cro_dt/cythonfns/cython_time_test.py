@@ -8,16 +8,17 @@ import cro_dt.NumbaTree as nt
 # import cro_dt.CupyTree as ct
 import tensorflow as tf
 import cro_dt.TensorflowTree as tft
+import pstats, cProfile
 
 if __name__ == "__main__":
-    depth = 6
+    depth = 5
 
     n_samples = 10000
     n_classes = 2
     n_leaves = 2 ** depth
     n_features = 2
 
-    simulations = 100
+    simulations = 1000
 
     X = np.random.uniform(-5, 5, (n_samples, n_features))
     X = np.int_(X).astype(np.double)
@@ -65,3 +66,17 @@ if __name__ == "__main__":
             acc_tensorflow, _ = tft.dt_matrix_fit(X, None, W, depth, n_classes, X_, Y_, M)
     toc = time.perf_counter()
     print(f"Tensorflow evaluation time: \t{(toc - tic)} s")
+
+    # def foobar():
+    #     for _ in range(simulations):
+    #         W = np.random.uniform(-1, 1, (n_leaves - 1, n_features + 1))
+    #         acc_cytree, _ = cy.dt_tree_fit(X, y, W, depth, n_classes, X_)
+    #
+    # import pyximport
+    #
+    # pyximport.install()
+    #
+    # cProfile.runctx("foobar()", globals(), locals(), "Profile.prof")
+    #
+    # s = pstats.Stats("Profile.prof")
+    # s.strip_dirs().sort_stats("time").print_stats()

@@ -78,9 +78,12 @@ def get_initial_pop(data_config, popsize, X_train, y_train,
 
 
 def get_W_from_solution(solution, depth, n_attributes, args):
-    W = solution.reshape((2 ** depth - 1, n_attributes + 1))
+    if args["evaluation_scheme"] == "tensorflow":
+        W = tf.cast(tf.reshape(solution, [2 ** depth - 1, n_attributes + 1]), dtype=tf.float64)
+    else:
+        W = solution.reshape((2 ** depth - 1, n_attributes + 1))
 
-    if args["univariate"]:
+    if not args["dataset"].startswith("artificial") and args["univariate"]:
         W = vt.get_W_as_univariate(W)
 
     if args["should_use_threshold"]:
@@ -233,6 +236,9 @@ if __name__ == "__main__":
         fitness_evaluation = cp.dt_matrix_fit
     elif args["evaluation_scheme"] == "tensorflow":
         fitness_evaluation = tft.dt_matrix_fit_wrapped
+    elif args["evaluation_scheme"] == "tensorflow_cpu":
+        fitness_evaluation = tft.dt_matrix_fit_cpu_wrapped
+        args["evaluation_scheme"] = "tensorflow"
     else:
         print(f"Value '{args['evaluation_scheme']}' for 'evaluation scheme' is invalid.")
         sys.exit(0)
@@ -260,11 +266,12 @@ if __name__ == "__main__":
         simulations = range(args["simulations"])[start_idx:]
 
         for simulation in simulations:
-            # Doing dataset stuff
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=simulation,
-                                                                stratify=y)
-            X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation,
-                                                            stratify=y_test)
+            if args["dataset"].startswith("artificial"):
+                X_train, y_train = X, y
+                X_test, y_test = X, y
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=simulation, stratify=y)
+                X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation, stratify=y_test)
 
             if args["should_normalize_dataset"]:
                 scaler = StandardScaler().fit(X_train)
@@ -291,11 +298,18 @@ if __name__ == "__main__":
             class SupervisedObjectiveFunc(AbsObjetiveFunc):
                 def __init__(self, size, opt="max"):
                     self.size = size
+                    self.time_test = args["dataset"].startswith("artificial")
                     super().__init__(self.size, opt)
 
                 def objetive(self, solution):
                     W = get_W_from_solution(solution, depth, n_attributes, args)
-                    accuracy, _ = fitness_evaluation(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M)
+                    if args["evaluation_scheme"] == "cytree":
+                        attributes = np.array([i for w in W for i, val in enumerate(w) if val != 0 and i != 0])
+                        thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
+                        inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
+                        accuracy, _ = fitness_evaluation(X_train_, y_train, W, depth, n_classes, attributes, thresholds, inversions)
+                    else:
+                        accuracy, _ = fitness_evaluation(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M)
 
                     if args["univariate"]:
                         return accuracy
@@ -307,29 +321,36 @@ if __name__ == "__main__":
                         return accuracy - penalty
 
                 def random_solution(self):
-                    return vt.generate_random_weights(n_attributes, depth)
+                    if args["evaluation_scheme"] == "tensorflow":
+                        return tf.random.uniform(shape=[(2**depth - 1) * (n_attributes + 1)], minval=-1, maxval=1)
+                    else:
+                        return vt.generate_random_weights(n_attributes, depth)
 
                 def check_bounds(self, solution):
-                    return np.clip(solution.copy(), -1, 1)
+                    if args["evaluation_scheme"] == "tensorflow":
+                        return tf.clip_by_value(solution, -1, 1)
+                    else:
+                        return np.clip(solution.copy(), -1, 1)
 
             sol_size = len(vt.generate_random_weights(n_attributes, depth).flatten())
             objfunc = SupervisedObjectiveFunc(sol_size)
+            c = CRO_SL(objfunc, get_substrates_real(cro_configs), cro_configs["general"])
 
             # Getting initial population
-            args['initial_pop'] = None if args['initial_pop'] == 'None' else args['initial_pop']
-            initial_pop = get_initial_pop(data_config, popsize, X_train, y_train,
-                                          args["should_cart_init"], args["depth"], args["initial_pop"], objfunc)
+            if not args["dataset"].startswith("artificial"):
+                args['initial_pop'] = None if args['initial_pop'] == 'None' else args['initial_pop']
+                initial_pop = get_initial_pop(data_config, popsize, X_train, y_train,
+                                            args["should_cart_init"], args["depth"], args["initial_pop"], objfunc)
 
-            c = CRO_SL(objfunc, get_substrates_real(cro_configs), cro_configs["general"])
-            if initial_pop is not None:
-                c.population.population = []
-                for tree in initial_pop:
-                    coral = Coral(tree.flatten(), objfunc=objfunc)
-                    coral.get_fitness()
-                    c.population.population.append(coral)
+                if initial_pop is not None:
+                    c.population.population = []
+                    for tree in initial_pop:
+                        coral = Coral(tree.flatten(), objfunc=objfunc)
+                        coral.get_fitness()
+                        c.population.population.append(coral)
 
-            print(f"Average accuracy in CART seeding: {np.mean([f.fitness for f in c.population.population])}")
-            print(f"Best accuracy in CART seeding: {np.max([f.fitness for f in c.population.population])}")
+                print(f"Average accuracy in CART seeding: {np.mean([f.fitness for f in c.population.population])}")
+                print(f"Best accuracy in CART seeding: {np.max([f.fitness for f in c.population.population])}")
 
             # Running CRO-DT
             start_time = time.time()
@@ -384,6 +405,8 @@ if __name__ == "__main__":
                 multiv_W, _ = c.population.best_solution()
 
             # Post-process returned model from CRO-DT
+            if args["evaluation_scheme"] == "tensorflow":
+                multiv_W = multiv_W.numpy()
             multiv_W = multiv_W.reshape((2 ** depth - 1, n_attributes + 1))
             if args["should_use_threshold"]:
                 multiv_W[:, 1:][abs(multiv_W[:, 1:]) < args["threshold"]] = 0

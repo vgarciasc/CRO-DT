@@ -10,9 +10,9 @@ import tensorflow as tf
 import cro_dt.TensorflowTree as tft
 
 if __name__ == "__main__":
-    depth = 6
+    depth = 5
 
-    n_samples = 10000
+    n_samples = 1000
     n_classes = 2
     n_leaves = 2 ** depth
     n_features = 2
@@ -54,12 +54,12 @@ if __name__ == "__main__":
         # toc = time.perf_counter()
         # print(f"Cupy tree evaluation time: \t\t{(toc - tic)} s")
 
-        # nt.dt_matrix_fit_dx_numba(X, y, W, depth, n_classes, X_, Y_, M)
-        # tic = time.perf_counter()
-        # for _ in range(simulations):
-        #     acc_numba, _ = nt.dt_matrix_fit_dx_numba(X, y, W, depth, n_classes, X_, Y_, M)
-        # toc = time.perf_counter()
-        # print(f"Numba matrix evaluation time: \t\t{(toc - tic)} s")
+        nt.dt_matrix_fit_dx_numba(X, y, W, depth, n_classes, X_, Y_, M)
+        tic = time.perf_counter()
+        for _ in range(simulations):
+            acc_numba, _ = nt.dt_matrix_fit_dx_numba(X, y, W, depth, n_classes, X_, Y_, M)
+        toc = time.perf_counter()
+        print(f"Numba matrix evaluation time: \t{(toc - tic)} s")
 
         tic = time.perf_counter()
         with tf.device("/GPU:0"):
@@ -76,11 +76,11 @@ if __name__ == "__main__":
 
         print("-----------")
         # print(f"ACCURACIES: (tree: {acc_tree},  matrix: {acc_matrix}, tensorflow: {acc_tensorflow})")
-        print(f"ACCURACIES: (matrix: {acc_matrix}, tensorflow: {acc_tensorflow})")
+        print(f"ACCURACIES: (matrix: {acc_matrix}, tensorflow: {acc_tensorflow}, numba = {acc_numba}")
 
         # Check if they are all the same
         # if not np.allclose(acc_tree, acc_matrix, acc_tensorflow):
-        if not np.allclose(acc_matrix, acc_tensorflow):
+        if not np.allclose(acc_matrix, acc_tensorflow, acc_numba):
             print("Error!")
             pdb.set_trace()
 

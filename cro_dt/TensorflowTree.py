@@ -22,5 +22,9 @@ def dt_matrix_fit(X, _, W, depth, n_classes, X_, Y_, M):
     return accuracy, labels
 
 def dt_matrix_fit_wrapped(X, _, W, depth, n_classes, X_, Y_, M):
-    # with tf.device("/GPU:0"):
-    return dt_matrix_fit(X, _, W, depth, n_classes, X_, Y_, M)
+    with tf.device("/GPU:0"):
+        return dt_matrix_fit(X, _, W, depth, n_classes, X_, Y_, M)
+
+def dt_matrix_fit_cpu_wrapped(X, _, W, depth, n_classes, X_, Y_, M):
+    with tf.device("/CPU:0"):
+        return dt_matrix_fit(X, _, W, depth, n_classes, X_, Y_, M)

@@ -7,31 +7,30 @@ import time
 from rich import print
 import cro_dt.VectorTree as vt
 
-def dt_matrix_fit_dx(X, y, W, depth, n_classes, X_, Y_, M):
-    n_leaves = len(W) + 1
+def dt_matrix_fit_dx_numba(X, y, W, depth, n_classes, X_, Y_, M):
+    R, N, count_0s = numba_subproc1_dx(X, y, W, depth, n_classes, X_, Y_, M)
+    BC = np.array([np.bincount(r, minlength=n_classes) for r in R])
+    C0 = np.pad([count_0s], ((0, n_classes - 1,), (0, 0)))
+    accuracy = np.sum(np.max(BC - C0.T, axis=1)) / N
+    labels = numba_subproc2_dx(X, y, W, depth, n_classes, X_, Y_, BC, C0, N)
+    return accuracy, labels
+
+@jit(nopython=True)
+def numba_subproc1_dx(X, y, W, depth, n_classes, X_, Y_, M):
     N = len(X)
 
     Z = np.sign(W @ X_.T)
     Z_ = np.clip(M @ Z - (depth - 1), 0, 1)
-    R = Z_ * Y_
-
+    R = (Z_ * Y_).astype(np.int64)
     count_0s = N - np.sum(Z_, axis=1)
-    R = np.int_(R)
-    H = np.zeros((n_leaves, n_classes))
-    labels = np.zeros(n_leaves)
-    correct_preds = 0
-    for l in range(n_leaves):
-        bc = np.bincount(R[l], minlength=n_classes)
-        bc[0] -= count_0s[l]
 
-        most_popular_class = np.argmax(bc)
-        labels[l] = most_popular_class
-        correct_preds += bc[most_popular_class]
+    return R, N, count_0s
 
-    accuracy = correct_preds / N
-    return accuracy, labels
+@jit(nopython=True)
+def numba_subproc2_dx(X, y, W, depth, n_classes, X_, Y_, BC, C0, N):
+    return np.argmax(BC - C0.T, axis=1)
 
-def dt_matrix_fit_dx_numba(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, untie=False):
+def dt_matrix_fit_dx(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, untie=False):
     n_leaves = len(W) + 1
     N = len(X)
 
