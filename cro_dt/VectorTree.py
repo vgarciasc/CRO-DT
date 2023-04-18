@@ -78,8 +78,7 @@ def create_mask_dx(depth=3):
                 m[i][j] = 1
                 break
 
-    return m
-
+    return np.int_(m)
 
 def predict_batch(X, W, labels, add_1=False):
     if add_1:
