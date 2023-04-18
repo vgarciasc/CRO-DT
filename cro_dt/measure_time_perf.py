@@ -1,4 +1,6 @@
 import pdb
+from datetime import datetime
+
 import numpy as np
 import json
 import time
@@ -55,6 +57,7 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
 
     if algo == "tf_batch":
         W_batch = np.array([generate_W(n_leaves, n_attributes) for _ in range(n_evals)])
+        W_batch = tf.convert_to_tensor(W_batch, dtype=tf.float64)
 
         # Warming up the GPU, first time is always slow
         tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
@@ -76,6 +79,8 @@ def evaluate_algo(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_evals
                                simul_idx, n_simulations, verbose) for simul_idx in range(n_simulations)]
 
 if __name__ == "__main__":
+    timestamp = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
+
     n_evals = int(1000)
     n_simulations = 10
     datasets = [(100, 3, 2), (1000, 3, 2), (1000, 3, 10), (1000, 10, 10),
@@ -101,7 +106,7 @@ if __name__ == "__main__":
             for algo in ["cytree", "matrix", "tf", "tf_batch"]:
                 measured_time = evaluate_algo(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_evals, n_simulations)
                 time_measures[dataset_str][f"depth_{depth}"][algo] = measured_time
-                with open("results/time_measures.json", "w") as f:
+                with open(f"results/time_measures_{timestamp}.json", "w") as f:
                     json.dump(time_measures, f, indent=2)
 
         print(time_measures)
