@@ -497,6 +497,65 @@ def get_W_as_univariate_tf(multiv_W):
     return multiv_W - b
 
 
+def dt_matrix_fit_paper(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, untie=False):
+    n_leaves = len(W) + 1
+    N = len(X)
+
+    M = create_mask_dx(depth) if M is None else M
+    X_ = np.vstack((np.ones(len(X)).T, X.T)).T if X_ is None else X_
+    Y_ = np.tile(y, (n_leaves, 1)) if Y_ is None else Y_
+
+    Z = np.sign(W @ X_.T)
+    # Z = np.sign(np.sign(W @ X_.T) - 0.5) # Slightly more inefficient but guarantees that ties do not happen
+    # Z_ = clipper(M @ Z, depth)
+    Z_ = np.clip(M @ Z - (depth - 1), 0, 1)
+    R = Z_ * Y_
+
+    count_0s = N - np.sum(Z_, axis=1)
+    R = np.int_(R)
+    H = np.zeros((n_leaves, n_classes))
+    labels = np.zeros(n_leaves)
+    correct_preds = 0
+    for l in range(n_leaves):
+        bc = np.bincount(R[l], minlength=n_classes)
+        bc[0] -= count_0s[l]
+
+        most_popular_class = np.argmax(bc)
+        labels[l] = most_popular_class
+        correct_preds += bc[most_popular_class]
+
+    accuracy = correct_preds / N
+    return accuracy, labels
+
+
+def dt_tree_fit_paper(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, default_label=0):
+    n_leaves = len(W) + 1
+
+    M_i, M_l = create_nodes_tree_mapper(depth) if M is None else M
+
+    count = [np.zeros(n_classes) for _ in range(n_leaves)]
+
+    for x_i, y_i in zip(X_, y):
+        node_idx = 0
+        curr_depth_2go = depth
+
+        while curr_depth_2go != 0:
+            if W[M_i[node_idx]] @ x_i <= 0:
+                node_idx += 1
+            else:
+                node_idx = node_idx + 2 ** (curr_depth_2go)
+            curr_depth_2go -= 1
+        leaf = M_l[node_idx]
+        count[leaf][y_i] += 1
+
+    labels = np.zeros((n_leaves, n_classes))
+    for leaf, samples in enumerate(count):
+        labels[leaf][np.argmax(samples)] = 1
+
+    accuracy = sum(np.max(np.array(count), axis=1)) / len(X)
+
+    return accuracy, labels
+
 if __name__ == "__main__":
     # W = np.array([[0.228, 0.000, 0.478], [-0.633, 0.384, 0.000], [-0.986, 0.000, 0.043], [0.495, 0.065, 0.000], [-0.691, 0.000, 0.335], [0.065, 0.000, 0.000], [0.927, 0.000, -0.111]])
     # W = np.array([[6.820, -4.568, -5.836], [0.780, 5.135, -4.205], [13.503,  2.909,  1.977]])
