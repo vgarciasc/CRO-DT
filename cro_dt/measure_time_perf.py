@@ -6,7 +6,6 @@ import numpy as np
 import json
 import time
 import cro_dt.VectorTree as vt
-import cro_dt.MatrixTree as mt
 import cro_dt.cythonfns.TreeEvaluation as cy
 import cro_dt.NumbaTree as nt
 import tensorflow as tf
