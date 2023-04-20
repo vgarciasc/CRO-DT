@@ -39,17 +39,18 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
         if verbose and gen % (n_gens // 10) == 0:
             print(f"Gen: \t\t{gen} / {n_gens}")
 
-        if algo == "tf_batch":
+        if algo in ["tf_batch", "tf_batch_cpu"]:
             W_batch = np.array([generate_W(n_leaves, n_attributes) for _ in range(gen_size)])
             W_batch = tf.convert_to_tensor(W_batch, dtype=tf.float64)
 
-            # Warming up the GPU, first time is always slow
-            tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
+            with tf.device("/CPU:0" if algo == "tf_batch_cpu" else "/GPU:0"):
+                # Warming up the GPU, first time is always slow
+                tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
 
-            tic = time.perf_counter()
-            tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
-            toc = time.perf_counter()
-            total_time += (toc - tic)
+                tic = time.perf_counter()
+                tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
+                toc = time.perf_counter()
+                total_time += (toc - tic)
         else:
             for _ in range(gen_size):
                 W = generate_W(n_leaves, n_attributes)
@@ -76,6 +77,9 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
                     vt.dt_matrix_fit_paper(X, y, W, depth, n_classes, X_, Y_, M)
                 elif algo == "tf":
                     tft.dt_matrix_fit(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt)
+                elif algo == "tf_cpu":
+                    with tf.device("/CPU:0"):
+                        tft.dt_matrix_fit(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt)
 
                 toc = time.perf_counter()
                 total_time += (toc - tic)
