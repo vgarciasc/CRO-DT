@@ -34,11 +34,9 @@ if __name__ == "__main__":
         Xtf = tf.convert_to_tensor(X, dtype=tf.float64)
         X_tf = tf.convert_to_tensor(X_, dtype=tf.float64)
         Y_tf = tf.convert_to_tensor(Y_, dtype=tf.int32)
+        Y_nb = tf.convert_to_tensor(Y_ + 1, dtype=tf.int32)
         Wtf = tf.convert_to_tensor(W, dtype=tf.float64)
         Mtf = tf.convert_to_tensor(M, dtype=tf.int32)
-        y_nb = y + 1
-        Y_nb = np.int_(np.tile(y_nb, (2 ** depth, 1)))
-        Y_nb = tf.convert_to_tensor(Y_nb, dtype=tf.int32)
         W_batch = np.array([W for _ in range(simulations)])
         W_batch_tf = tf.convert_to_tensor(W_batch, dtype=tf.float64)
 
@@ -91,7 +89,7 @@ if __name__ == "__main__":
         print(f"Tensorflow NB evaluation time: \t\t\t{(toc - tic)} s")
 
         tic = time.perf_counter()
-        accs_tensorflow_total, _ = tft.dt_matrix_fit_batch(Xtf, None, W_batch_tf, depth, n_classes, X_tf, Y_tf, Mtf, N)
+        accs_tensorflow_total, _ = tft.dt_matrix_fit_batch(Xtf, None, W_batch_tf, depth, n_classes, X_tf, Y_tf, Mtf, N, n_leaves, simulations)
         toc = time.perf_counter()
         acc_tensorflow_total = accs_tensorflow_total[0]
         print(f"Tensorflow batch evaluation time: \t\t{(toc - tic)} s")

@@ -58,20 +58,21 @@ if __name__ == "__main__":
     toc = time.perf_counter()
     print(f"Matrix evaluation time: \t\t{(toc - tic)} s")
 
-    tic = time.perf_counter()
+    total_time = 0
     for _ in range(simulations):
         W = np.random.uniform(-1, 1, (n_leaves - 1, n_features + 1))
         W = vt.get_W_as_univariate(W)
-        with tf.device("/GPU:0"):
-            X = tf.convert_to_tensor(X, dtype=tf.float64)
-            W = tf.convert_to_tensor(W, dtype=tf.float64)
-            X_ = tf.convert_to_tensor(X_, dtype=tf.float64)
-            Y_ = tf.convert_to_tensor(Y_, dtype=tf.int32)
-            M = tf.convert_to_tensor(M, dtype=tf.int32)
+        Xtf = tf.convert_to_tensor(X, dtype=tf.float64)
+        Wtf = tf.convert_to_tensor(W, dtype=tf.float64)
+        X_tf = tf.convert_to_tensor(X_, dtype=tf.float64)
+        Y_tf = tf.convert_to_tensor(Y_, dtype=tf.int32)
+        Mtf = tf.convert_to_tensor(M, dtype=tf.int32)
 
-            acc_tensorflow, _ = tft.dt_matrix_fit(X, None, W, depth, n_classes, X_, Y_, M)
-    toc = time.perf_counter()
-    print(f"Tensorflow evaluation time: \t{(toc - tic)} s")
+        tic = time.perf_counter()
+        acc_tensorflow, _ = tft.dt_matrix_fit(X, None, Wtf, depth, n_classes, X_tf, Y_tf, Mtf, n_samples)
+        toc = time.perf_counter()
+        total_time += toc - tic
+    print(f"Tensorflow evaluation time: \t{(total_time)} s")
 
     # def foobar():
     #     for _ in range(simulations):

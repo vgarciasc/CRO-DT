@@ -33,16 +33,16 @@ def dt_matrix_fit_nb(X, _, W, depth, n_classes, X_, Y_, M, N, n_leaves):
     return accuracy, labels
 
 @tf.function
-def dt_matrix_fit_batch(X, _, W_total, depth, n_classes, X_, Y_, M, N):
+def dt_matrix_fit_batch(X, _, W_total, depth, n_classes, X_, Y_, M, N, n_leaves, batch_size):
     Z = tf.cast(tf.sign(tf.matmul(W_total, tf.transpose(X_))), tf.int32)
     Z_ = tf.cast(tf.clip_by_value(tf.subtract(tf.matmul(M, Z), depth - 1), 0, 1), tf.int32)
     R_ = tf.math.multiply(Z_, Y_)
 
     count_0s = tf.subtract(N, tf.reduce_sum(Z_, axis=2))
 
-    R_2 = tf.reshape(R_, (R_.shape[0] * R_.shape[1], R_.shape[2]))
+    R_2 = tf.reshape(R_, (batch_size * n_leaves, N))
     BC2 = tf.math.bincount(R_2, axis=-1)
-    BC = tf.reshape(BC2, [R_.shape[0], R_.shape[1], n_classes])
+    BC = tf.reshape(BC2, [batch_size, n_leaves, n_classes])
 
     C0 = tf.cast(tf.transpose(tf.pad(tf.convert_to_tensor([count_0s]), tf.constant([[0, n_classes - 1, ], [0, 0], [0, 0]]), "CONSTANT"), (1, 2, 0)), tf.int32)
     labels = tf.argmax(tf.subtract(BC, C0), axis=2)
@@ -56,7 +56,7 @@ def dt_matrix_fit_batch_nb(X, _, W_total, depth, n_classes, X_, Y_, M, N, n_leav
     Q = tf.cast(tf.clip_by_value(tf.subtract(tf.matmul(M, Z), depth - 1), 0, 1), tf.int32)
     Y_Q = tf.math.multiply(Y_, Q)
 
-    R1 = tf.reshape(Y_Q, (Y_Q.shape[0] * Y_Q.shape[1], Y_Q.shape[2]))
+    R1 = tf.reshape(Y_Q, (batch_size * n_leaves, N))
     R2 = tf.math.bincount(R1, axis=-1)
     R3 = tf.slice(R2, [0, 1], [batch_size * n_leaves, n_classes])
     R = tf.reshape(R3, [Z.shape[0], n_leaves, n_classes])

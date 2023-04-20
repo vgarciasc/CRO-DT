@@ -21,12 +21,13 @@ def generate_W(n_leaves, n_attributes):
     return W
 
 
-def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_gens, gen_size,
+def evaluate_algo_once(algo, X, y, X_, Y_, M, N, depth, n_attributes, n_classes, n_gens, gen_size,
                        simul_idx=-1, n_simulations=-1, dataset_str='undefined', verbose=True):
     Xt = tf.convert_to_tensor(X, dtype=tf.float64)
     X_t = tf.convert_to_tensor(X_, dtype=tf.float64)
-    Y_t = tf.convert_to_tensor(Y_, dtype=tf.int32)
+    Y_t = tf.convert_to_tensor(Y_ + 1, dtype=tf.int32)
     Mt = tf.convert_to_tensor(M, dtype=tf.int32)
+    n_leaves = 2 ** depth
 
     total_time = 0
 
@@ -44,10 +45,10 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
 
             with tf.device("/CPU:0" if algo == "tf_batch_cpu" else "/GPU:0"):
                 # Warming up the GPU, first time is always slow
-                tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
+                tft.dt_matrix_fit_batch_nb(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt, N, n_leaves, gen_size)
 
                 tic = time.perf_counter()
-                tft.dt_matrix_fit_batch(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt)
+                tft.dt_matrix_fit_batch_nb(Xt, None, W_batch, depth, n_classes, X_t, Y_t, Mt, N, n_leaves, gen_size)
                 toc = time.perf_counter()
                 total_time += (toc - tic)
         else:
@@ -55,17 +56,13 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
                 W = generate_W(n_leaves, n_attributes)
                 Wt = tf.convert_to_tensor(W, dtype=tf.float64)
                 attributes = np.array([i for w in W for i, val in enumerate(w) if val != 0 and i != 0])
-                thresholds = np.array(
-                    [(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if
-                     val != 0 and i != 0])
-                inversions = np.array(
-                    [(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0],
-                    dtype=np.int64)
+                thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
+                inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
                 M_t = vt.create_nodes_tree_mapper(depth)
 
                 if algo == "tf":
                     # Warming up the GPU, first time is always slow
-                    tft.dt_matrix_fit(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt)
+                    tft.dt_matrix_fit_nb(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt, N, n_leaves)
 
                 tic = time.perf_counter()
                 if algo == "tree":
@@ -75,10 +72,10 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
                 elif algo == "matrix":
                     vt.dt_matrix_fit_paper(X, y, W, depth, n_classes, X_, Y_, M)
                 elif algo == "tf":
-                    tft.dt_matrix_fit(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt)
+                    tft.dt_matrix_fit_nb(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt, N, n_leaves)
                 elif algo == "tf_cpu":
                     with tf.device("/CPU:0"):
-                        tft.dt_matrix_fit(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt)
+                        tft.dt_matrix_fit_nb(Xt, None, Wt, depth, n_classes, X_t, Y_t, Mt, N, n_leaves)
 
                 toc = time.perf_counter()
                 total_time += (toc - tic)
@@ -89,9 +86,9 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_
     return total_time
 
 
-def evaluate_algo(algo, X, y, X_, Y_, M, depth, n_attributes, n_classes, n_gens, gen_size, n_simulations, verbose=True):
+def evaluate_algo(algo, X, y, X_, Y_, M, N, depth, n_attributes, n_classes, n_gens, gen_size, n_simulations, verbose=True):
     print("-----------------------------")
-    return [evaluate_algo_once(algo, X, y, X_, Y_, M,
+    return [evaluate_algo_once(algo, X, y, X_, Y_, M, N,
                                depth, n_attributes, n_classes,
                                n_gens, gen_size, simul_idx, n_simulations,
                                dataset_str, verbose) for simul_idx in range(n_simulations)]
@@ -134,13 +131,13 @@ if __name__ == "__main__":
 
             time_measures[algo][dataset_str] = {}
 
-            for depth in range(2, 8):
+            for depth in range(2, 3):
                 n_leaves = 2 ** depth
                 Y_ = np.int_(np.tile(y, (n_leaves, 1)))
                 M = vt.create_mask_dx(depth)
 
                 try:
-                    measured_time = evaluate_algo(algo, X, y, X_, Y_, M, depth,
+                    measured_time = evaluate_algo(algo, X, y, X_, Y_, M, N, depth,
                                                   n_attributes, n_classes, n_gens, gen_size,
                                                   n_simulations, dataset_str)
                 except Exception as e:
