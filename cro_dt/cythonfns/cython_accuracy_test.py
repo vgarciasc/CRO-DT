@@ -3,7 +3,6 @@ import numpy as np
 import time
 from cro_dt.VectorTree import dt_matrix_fit_dx
 import cro_dt.VectorTree as vt
-import cro_dt.MatrixTree as mt
 import cro_dt.cythonfns.TreeEvaluation as cy
 import cro_dt.NumbaTree as nt
 # import cro_dt.CupyTree as ct
