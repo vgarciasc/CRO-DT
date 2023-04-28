@@ -334,7 +334,8 @@ if __name__ == "__main__":
                     c.population.population = []
                     for tree in initial_pop:
                         coral = Coral(tree.flatten(), objfunc=objfunc)
-                        coral.get_fitness()
+                        if not args["evaluation_scheme"].startswith("tf_batch"):
+                            coral.get_fitness()
                         c.population.population.append(coral)
 
                 print(f"Average accuracy in CART seeding: {np.mean([f.fitness for f in c.population.population])}")
