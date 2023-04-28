@@ -553,6 +553,7 @@ def dt_tree_fit_paper(X, y, W, depth, n_classes, X_=None, Y_=None, M=None, defau
         labels[leaf][np.argmax(samples)] = 1
 
     accuracy = sum(np.max(np.array(count), axis=1)) / len(X)
+    labels = np.argmax(labels, axis=0)
 
     return accuracy, labels
 

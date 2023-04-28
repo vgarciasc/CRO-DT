@@ -5,6 +5,9 @@ import numpy as np
 from CoralPopulation import CoralPopulation
 from matplotlib import pyplot as plt
 
+import cro_dt.TensorflowTree as tft
+import tensorflow as tf
+
 """
 Coral reef optimization with substrate layers
 
@@ -26,10 +29,13 @@ Parameters:
     prob_amp: parameter that makes probabilities more or less extreme with the same data
 
 """
+
+
 class CRO_SL:
     """
     Constructor of the CRO algorithm
     """
+
     def __init__(self, objfunc, substrates, params):
         self.params = params
 
@@ -52,7 +58,7 @@ class CRO_SL:
         self.objfunc = objfunc
         self.substrates = substrates
         self.population = CoralPopulation(objfunc, substrates, params)
-        
+
         # Metrics
         self.history = []
         self.pop_size = []
@@ -72,24 +78,29 @@ class CRO_SL:
     """
     One step of the algorithm
     """
-    def step(self, progress, depredate=True, classic=False):        
+
+    def step(self, progress, depredate=True, classic=False):
         if not classic:
             self.population.generate_substrates(progress)
 
         larvae = self.population.evolve_with_substrates()
-        
+
+        if self.evaluation_scheme.startswith("tf_batch"):
+            self.calculate_fitness_tf_batch(larvae)
+
         self.population.larvae_setting(larvae)
 
         if depredate:
             self.population.extreme_depredation()
             self.population.depredation()
-        
+
         _, best_fitness = self.population.best_solution()
         self.history.append(best_fitness)
-    
+
     """
     Stopping conditions given by a parameter
     """
+
     def stopping_condition(self, gen, time_start):
         stop = True
         if self.stop_cond == "neval":
@@ -97,7 +108,7 @@ class CRO_SL:
         elif self.stop_cond == "ngen":
             stop = gen >= self.Ngen
         elif self.stop_cond == "time":
-            stop = time.time()-time_start >= self.time_limit
+            stop = time.time() - time_start >= self.time_limit
         elif self.stop_cond == "fit_target":
             if self.objfunc.opt == "max":
                 stop = self.population.best_solution()[1] >= self.fit_target
@@ -109,25 +120,27 @@ class CRO_SL:
     """
     Progress of the algorithm as a number between 0 and 1, 0 at the begining, 1 at the end
     """
+
     def progress(self, gen, time_start):
         prog = 0
         if self.stop_cond == "neval":
-            prog = self.objfunc.counter/self.Neval
+            prog = self.objfunc.counter / self.Neval
         elif self.stop_cond == "ngen":
-            prog = gen/self.Ngen 
+            prog = gen / self.Ngen
         elif self.stop_cond == "time":
-            prog = (time.time()-time_start)/self.time_limit
+            prog = (time.time() - time_start) / self.time_limit
         elif self.stop_cond == "fit_target":
             if self.objfunc.opt == "max":
-                prog = self.population.best_solution()[1]/self.fit_target
+                prog = self.population.best_solution()[1] / self.fit_target
             else:
-                prog = self.fit_target/self.population.best_solution()[1]
+                prog = self.fit_target / self.population.best_solution()[1]
 
         return prog
 
     """
     Execute the algorithm to get the best solution possible along with it's evaluation
     """
+
     def optimize(self):
         gen = 0
         time_start = time.process_time()
@@ -135,6 +148,10 @@ class CRO_SL:
         display_timer = time.time()
 
         self.population.generate_random()
+        
+        if self.evaluation_scheme.startswith("tf_batch"):
+            self.calculate_fitness_tf_batch(self.population.population)
+            
         self.step(0, depredate=False)
         while not self.stopping_condition(gen, real_time_start):
             prog = self.progress(gen, real_time_start)
@@ -143,14 +160,15 @@ class CRO_SL:
             if self.verbose and time.time() - display_timer > self.v_timer:
                 self.step_info(gen, real_time_start)
                 display_timer = time.time()
-                
+
         self.real_time_spent = time.time() - real_time_start
         self.time_spent = time.process_time() - time_start
         return self.population.best_solution()
-    
+
     """
     Execute the classic version of the algorithm
     """
+
     def optimize_classic(self):
         gen = 0
         time_start = time.process_time()
@@ -166,7 +184,7 @@ class CRO_SL:
             if self.verbose and time.time() - display_timer > self.v_timer:
                 self.step_info(gen, real_time_start)
                 display_timer = time.time()
-                
+
         self.real_time_spent = time.time() - real_time_start
         self.time_spent = time.process_time() - time_start
         return self.population.best_solution()
@@ -174,6 +192,7 @@ class CRO_SL:
     """
     Save the result of an execution to a csv file in disk
     """
+
     def save_solution(self, file_name="solution.csv"):
         ind, fit = self.population.best_solution()
         np.savetxt(file_name, ind.reshape([1, -1]), delimiter=',')
@@ -183,8 +202,9 @@ class CRO_SL:
     """
     Displays information about the current state of the algotithm
     """
+
     def step_info(self, gen, start_time):
-        print(f"Time Spent {round(time.time() - start_time,2)}s:")
+        print(f"Time Spent {round(time.time() - start_time, 2)}s:")
         print(f"\tGeneration: {gen}")
         best_fitness = self.population.best_solution()[1]
         print(f"\tBest fitness: {best_fitness}")
@@ -196,12 +216,13 @@ class CRO_SL:
             weights = [round(i, 6) for i in self.population.substrate_weight]
             adjust = max([len(i) for i in subs_names])
             for idx, val in enumerate(subs_names):
-                print(f"\t\t{val}:".ljust(adjust+3, " ") + f"{weights[idx]}")
+                print(f"\t\t{val}:".ljust(adjust + 3, " ") + f"{weights[idx]}")
         print()
-    
+
     """
     Shows a summary of the execution of the algorithm
     """
+
     def display_report(self, show_plots=True, filename=None):
         if self.dynamic:
             self.display_report_dyn(show_plots, filename)
@@ -211,6 +232,7 @@ class CRO_SL:
     """
     Version of the summary for the dynamic variant
     """
+
     def display_report_dyn(self, show_plots=True, filename=None):
         factor = 1
         if self.objfunc.opt == "min" and self.dyn_method != "success":
@@ -226,16 +248,16 @@ class CRO_SL:
         weights = [round(i, 6) for i in self.population.substrate_weight]
         adjust = max([len(i) for i in subs_names])
         for idx, val in enumerate(subs_names):
-            print(f"\t\t{val}:".ljust(adjust+3, " ") + f"{weights[idx]}")
-        
+            print(f"\t\t{val}:".ljust(adjust + 3, " ") + f"{weights[idx]}")
+
         best_fitness = self.population.best_solution()[1]
         print("Best fitness:", best_fitness)
 
         # Plot fitness history
-        fig, (ax1, ax2) = plt.subplots(2, 2, figsize=(10,10))
+        fig, (ax1, ax2) = plt.subplots(2, 2, figsize=(10, 10))
         fig.suptitle("CRO_SL")
         plt.subplot(2, 2, 1)
-        
+
         plt.plot(self.history, "blue")
         plt.xlabel("generations")
         plt.ylabel("fitness")
@@ -260,13 +282,14 @@ class CRO_SL:
 
         if show_plots:
             plt.show()
-        
+
         if filename is not None:
             plt.savefig(filename)
 
     """
     Version of the summary for the dynamic variant
     """
+
     def display_report_nodyn(self, show_plots=True, filename=None):
         factor = 1
         if self.objfunc.opt == "min":
@@ -282,16 +305,16 @@ class CRO_SL:
         weights = [round(i, 6) for i in self.population.substrate_weight]
         adjust = max([len(i) for i in subs_names])
         for idx, val in enumerate(subs_names):
-            print(f"\t\t{val}:".ljust(adjust+3, " ") + f"{weights[idx]}")
-        
+            print(f"\t\t{val}:".ljust(adjust + 3, " ") + f"{weights[idx]}")
+
         best_fitness = self.population.best_solution()[1]
         print("Best fitness:", best_fitness)
 
         # Plot fitness history
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,5))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
         fig.suptitle("CRO_SL")
         plt.subplot(1, 2, 1)
-        
+
         plt.plot(self.history, "blue")
         plt.xlabel("generations")
         plt.ylabel("fitness")
@@ -305,9 +328,20 @@ class CRO_SL:
         plt.xlabel("generations")
         plt.ylabel("fitness")
         plt.title("Fitness of each substrate")
-        
+
         if show_plots:
             plt.show()
-        
+
         if filename is not None:
             plt.savefig(filename)
+
+    def calculate_fitness_tf_batch(self, corals):
+        X_train_, Y_train_, M, depth, n_attributes, n_classes = self.data
+        W_total = tf.convert_to_tensor([tf.reshape(i.solution, [2 ** depth - 1, n_attributes + 1]) for i in corals],
+                                       dtype=tf.float64)
+        accuracies, _ = tft.dt_matrix_fit_batch_nb(None, None, W_total, depth, n_classes, X_train_, Y_train_, M,
+                                                   len(X_train_), 2 ** depth, len(W_total))
+        for coral, accuracy in zip(corals, accuracies):
+            coral.fitness_calculated = True
+            coral.fitness = accuracy
+        self.objfunc.counter += len(corals)

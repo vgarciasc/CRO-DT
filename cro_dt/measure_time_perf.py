@@ -58,7 +58,7 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, N, depth, n_attributes, n_classes,
                 attributes = np.array([i for w in W for i, val in enumerate(w) if val != 0 and i != 0])
                 thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
                 inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
-                M_t = vt.create_nodes_tree_mapper(depth)
+                M_tree = vt.create_nodes_tree_mapper(depth)
 
                 if algo == "tf":
                     # Warming up the GPU, first time is always slow
@@ -66,7 +66,7 @@ def evaluate_algo_once(algo, X, y, X_, Y_, M, N, depth, n_attributes, n_classes,
 
                 tic = time.perf_counter()
                 if algo == "tree":
-                    vt.dt_tree_fit_paper(X, y, W, depth, n_classes, X_, Y_, M_t)
+                    vt.dt_tree_fit_paper(X, y, W, depth, n_classes, X_, Y_, M_tree)
                 elif algo == "cytree":
                     cy.dt_tree_fit(X_, y, W, depth, n_classes, attributes, thresholds, inversions)
                 elif algo == "matrix":

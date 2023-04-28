@@ -10,7 +10,7 @@ import tensorflow as tf
 import cro_dt.TensorflowTree as tft
 
 if __name__ == "__main__":
-    depth = 6
+    depth = 2
 
     n_samples = 1000
     n_classes = 2
@@ -44,10 +44,10 @@ if __name__ == "__main__":
         thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
         inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
 
-        M_t = vt.create_nodes_tree_mapper(depth)
+        M_tree = vt.create_nodes_tree_mapper(depth)
         tic = time.perf_counter()
         for _ in range(simulations):
-            acc_tree, _ = vt.dt_tree_fit_dx(X, y, W, depth, n_classes, X_, Y_, M_t)
+            acc_tree, _ = vt.dt_tree_fit_paper(X, y, W, depth, n_classes, X_, Y_, M_tree)
         toc = time.perf_counter()
         print(f"Tree evaluation time: \t\t\t\t\t{(toc - tic)} s")
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
         tic = time.perf_counter()
         for _ in range(simulations):
-            acc_matrix, _ = dt_matrix_fit_dx(X, y, W, depth, n_classes, X_, Y_, M)
+            acc_matrix, _ = vt.dt_matrix_fit_paper(X, y, W, depth, n_classes, X_, Y_, M)
         toc = time.perf_counter()
         print(f"Matrix evaluation time: \t\t\t\t{(toc - tic)} s")
 

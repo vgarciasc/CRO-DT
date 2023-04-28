@@ -3,7 +3,7 @@ import random
 import numpy as np
 import scipy as sp
 import scipy.stats
-
+import tensorflow as tf
 
 ## Mutation and recombination methods
 def xorMask(solution, strength, mode="byte"):
@@ -179,6 +179,14 @@ def DERand1(solution, population, F, CR):
         solution[mask] = v[mask]
     return solution
 
+@tf.function
+def DERand1_tf(solution, r1, r2, r3, F, CR):
+    dice = tf.random.uniform(solution.shape)
+    v = tf.add(r1.solution, tf.multiply(F, tf.subtract(r2.solution, r3.solution)))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
+    return solution
+
 def DEBest1(solution, population, F, CR):
     if len(population) > 3:
         fitness = [i.fitness for i in population]
@@ -190,6 +198,14 @@ def DEBest1(solution, population, F, CR):
         solution[mask] = v[mask]
     return solution
 
+@tf.function
+def DEBest1_tf(solution, r1, r2, best, F, CR):
+    dice = tf.random.uniform(solution.shape)
+    v = tf.add(best.solution, tf.multiply(F, tf.subtract(r1.solution, r2.solution)))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
+    return solution
+
 def DERand2(solution, population, F, CR):
     if len(population) > 5:
         r1, r2, r3, r4, r5 = random.sample(population, 5)
@@ -197,6 +213,17 @@ def DERand2(solution, population, F, CR):
         v = r1.solution + F*(r2.solution-r3.solution) + F*(r4.solution-r5.solution)
         mask = np.random.random(solution.shape) <= CR
         solution[mask] = v[mask]
+    return solution
+
+@tf.function
+def DERand2_tf(solution, r1, r2, r3, r4, r5, F, CR):
+    dice = tf.random.uniform(solution.shape)
+
+    v1 = tf.multiply(F, tf.subtract(r2.solution, r3.solution))
+    v2 = tf.multiply(F, tf.subtract(r4.solution, r5.solution))
+    v = tf.add(r1.solution, tf.add(v1, v2))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
     return solution
 
 def DEBest2(solution, population, F, CR):
@@ -210,6 +237,17 @@ def DEBest2(solution, population, F, CR):
         solution[mask] = v[mask]
     return solution
 
+@tf.function
+def DEBest2_tf(solution, r1, r2, r3, r4, best, F, CR):
+    dice = tf.random.uniform(solution.shape)
+
+    v1 = tf.multiply(F, tf.subtract(r1.solution, r2.solution))
+    v2 = tf.multiply(F, tf.subtract(r3.solution, r4.solution))
+    v = tf.add(best.solution, tf.add(v1, v2))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
+    return solution
+
 def DECurrentToBest1(solution, population, F, CR):
     if len(population) > 3:
         fitness = [i.fitness for i in population]
@@ -221,6 +259,17 @@ def DECurrentToBest1(solution, population, F, CR):
         solution[mask] = v[mask]
     return solution
 
+@tf.function
+def DECurrentToBest1_tf(solution, r1, r2, best, F, CR):
+    dice = tf.random.uniform(solution.shape)
+
+    v1 = tf.multiply(F, tf.subtract(best.solution, solution))
+    v2 = tf.multiply(F, tf.subtract(r1.solution, r2.solution))
+    v = tf.add(solution, tf.add(v1, v2))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
+    return solution
+
 def DECurrentToRand1(solution, population, F, CR):
     if len(population) > 3:
         r1, r2, r3 = random.sample(population, 3)
@@ -228,6 +277,17 @@ def DECurrentToRand1(solution, population, F, CR):
         v = solution + np.random.random()*(r1.solution-solution) + F*(r2.solution-r3.solution)
         mask = np.random.random(solution.shape) <= CR
         solution[mask] = v[mask]
+    return solution
+
+@tf.function
+def DECurrentToRand1_tf(solution, r1, r2, r3, F, CR):
+    dice = tf.random.uniform(solution.shape)
+
+    v1 = tf.multiply(np.random.random(), tf.subtract(r1.solution, solution))
+    v2 = tf.multiply(F, tf.subtract(r2.solution, r3.solution))
+    v = tf.add(solution, tf.add(v1, v2))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
     return solution
 
 def DECurrentToPBest1(solution, population, F, CR, p=0.11):
@@ -240,6 +300,17 @@ def DECurrentToPBest1(solution, population, F, CR, p=0.11):
         v = solution + F*(pbest.solution-solution) + F*(r1.solution-r2.solution)
         mask = np.random.random(solution.shape) <= CR
         solution[mask] = v[mask]
+    return solution
+
+@tf.function
+def DECurrentToPBest1_tf(solution, r1, r2, pbest, F, CR, p=0.11):
+    dice = tf.random.uniform(solution.shape)
+
+    v1 = tf.multiply(F, tf.subtract(pbest.solution, solution))
+    v2 = tf.multiply(F, tf.subtract(r1.solution, r2.solution))
+    v = tf.add(solution, tf.add(v1, v2))
+    mask = tf.less_equal(dice, CR)
+    solution = tf.where(mask, solution, v)
     return solution
 
 def dummy_op(solution, scale=1000):

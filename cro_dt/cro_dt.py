@@ -24,6 +24,8 @@ from cro_dt.utils import printv
 import cro_dt.VectorTree as vt
 # import cro_dt.CupyTree as cp
 import cro_dt.TensorflowTree as tft
+import cro_dt.cythonfns.TreeEvalPython as pyt
+import cro_dt.MatrixTree as mt
 import cro_dt.cythonfns.TreeEvaluation as cy
 from cro_dt.sup_configs import get_config, load_dataset, artificial_dataset_list, real_dataset_list
 from cro_dt.cart import get_cart_as_W
@@ -78,12 +80,12 @@ def get_initial_pop(data_config, popsize, X_train, y_train,
 
 
 def get_W_from_solution(solution, depth, n_attributes, args):
-    if args["evaluation_scheme"] == "tensorflow":
+    if args["evaluation_scheme"].startswith("tf"):
         W = tf.cast(tf.reshape(solution, [2 ** depth - 1, n_attributes + 1]), dtype=tf.float64)
     else:
         W = solution.reshape((2 ** depth - 1, n_attributes + 1))
 
-    if not args["dataset"].startswith("artificial") and args["univariate"]:
+    if args["univariate"]:
         W = vt.get_W_as_univariate(W)
 
     if args["should_use_threshold"]:
@@ -195,9 +197,11 @@ if __name__ == "__main__":
     # Initialization
     depth = args["depth"]
     alpha = args["alpha"]
+    mask = vt.create_mask(depth)
     with open(args["cro_config"]) as f:
         cro_configs = json.load(f)
     popsize = cro_configs["general"]["popSize"]
+    n_inners, n_leaves = 2 ** depth - 1, 2 ** depth
 
     command_line = str(args)
     command_line += "\n\npython -m cro_dt.cro_dt " + " ".join(
@@ -220,41 +224,18 @@ if __name__ == "__main__":
     else:
         data_configs = [get_config(args['dataset'])]
 
-    if args["evaluation_scheme"] == "numba":
-        fitness_evaluation = vt.dt_matrix_fit_dx_numba
-    elif args["evaluation_scheme"] == "dx":
-        fitness_evaluation = vt.dt_matrix_fit_dx
-    elif args["evaluation_scheme"] == "dx2":
-        fitness_evaluation = vt.dt_matrix_fit_dx2
-    elif args["evaluation_scheme"] == "old":
-        fitness_evaluation = vt.dt_matrix_fit
-    elif args["evaluation_scheme"] == "tree":
-        fitness_evaluation = vt.dt_tree_fit_dx
-    elif args["evaluation_scheme"] == "cytree":
-        fitness_evaluation = cy.dt_tree_fit
-    elif args["evaluation_scheme"] == "cupy":
-        fitness_evaluation = cp.dt_matrix_fit
-    elif args["evaluation_scheme"] == "tensorflow":
-        fitness_evaluation = tft.dt_matrix_fit_wrapped
-    elif args["evaluation_scheme"] == "tensorflow_cpu":
-        fitness_evaluation = tft.dt_matrix_fit_cpu_wrapped
-        args["evaluation_scheme"] = "tensorflow"
-    else:
-        print(f"Value '{args['evaluation_scheme']}' for 'evaluation scheme' is invalid.")
-        sys.exit(0)
-
     if args["evaluation_scheme"] == "tree":
         M = vt.create_nodes_tree_mapper(depth)
     else:
         M = vt.create_mask_dx(depth)
 
-        if args["evaluation_scheme"] == "tensorflow":
+        if args["evaluation_scheme"] in ["tensorflow", "tensorflow_cpu", "tensorflow_total"]:
             M = tf.convert_to_tensor(M, dtype=tf.int32)
 
     histories = []
     for dataset_id, data_config in enumerate(data_configs):
         X, y = load_dataset(data_config)
-        mask = vt.create_mask(depth)
+        N = len(X)
 
         n_attributes = data_config["n_attributes"]
         n_classes = data_config["n_classes"]
@@ -271,21 +252,24 @@ if __name__ == "__main__":
                 X_test, y_test = X, y
             else:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=simulation, stratify=y)
-                X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation, stratify=y_test)
+                X_test, _, y_test, _ = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation, stratify=y_test)
 
             if args["should_normalize_dataset"]:
                 scaler = StandardScaler().fit(X_train)
                 X_train = scaler.transform(X_train)
                 X_test = scaler.transform(X_test)
-                # X_val = scaler.transform(X_val)
             else:
                 scaler = None
 
             # Preparing matrices that need to be calculated only once
             X_train_ = np.vstack((np.ones(len(X_train)).T, X_train.T)).T
             Y_train_ = np.tile(y_train, (2 ** depth, 1))
+            Xt = tf.convert_to_tensor(X_train, dtype=tf.float64)
+            X_t = tf.convert_to_tensor(X_train_, dtype=tf.float64)
+            Y_t = tf.convert_to_tensor(Y_train_ + 1, dtype=tf.int32)
+            Mt = tf.convert_to_tensor(M, dtype=tf.int32)
 
-            if args["evaluation_scheme"] == "tensorflow":
+            if args["evaluation_scheme"] in ["tensorflow", "tensorflow_cpu", "tensorflow_total"]:
                 X_train_ = tf.convert_to_tensor(X_train_, dtype=tf.float64)
                 Y_train_ = tf.convert_to_tensor(Y_train_, dtype=tf.int32)
 
@@ -298,18 +282,31 @@ if __name__ == "__main__":
             class SupervisedObjectiveFunc(AbsObjetiveFunc):
                 def __init__(self, size, opt="max"):
                     self.size = size
-                    self.time_test = args["dataset"].startswith("artificial")
+                    self.algo = args["evaluation_scheme"]
                     super().__init__(self.size, opt)
 
                 def objetive(self, solution):
                     W = get_W_from_solution(solution, depth, n_attributes, args)
-                    if args["evaluation_scheme"] == "cytree":
+
+                    if self.algo == "tree":
+                        M_tree = vt.create_nodes_tree_mapper(depth)
+                        accuracy, _ = vt.dt_tree_fit_paper(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M_tree)
+
+                    elif self.algo == "cytree":
                         attributes = np.array([i for w in W for i, val in enumerate(w) if val != 0 and i != 0])
                         thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
                         inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
-                        accuracy, _ = fitness_evaluation(X_train_, y_train, W, depth, n_classes, attributes, thresholds, inversions)
-                    else:
-                        accuracy, _ = fitness_evaluation(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M)
+                        accuracy, _ = pyt.dt_tree_fit(X_train_, y_train, W, depth, n_classes, attributes, thresholds, inversions)
+
+                    elif self.algo == "matrix":
+                        accuracy, _ = vt.dt_matrix_fit_paper(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M)
+
+                    elif self.algo == "tf":
+                        accuracy, _ = tft.dt_matrix_fit_nb(Xt, None, W, depth, n_classes, X_t, Y_t, Mt, N, n_leaves)
+
+                    elif self.algo == "tf_cpu":
+                        with tf.device("/CPU:0"):
+                            accuracy, _ = tft.dt_matrix_fit_nb(Xt, None, W, depth, n_classes, X_t, Y_t, Mt, N, n_leaves)
 
                     if args["univariate"]:
                         return accuracy
@@ -321,13 +318,13 @@ if __name__ == "__main__":
                         return accuracy - penalty
 
                 def random_solution(self):
-                    if args["evaluation_scheme"] == "tensorflow":
+                    if args["evaluation_scheme"].startswith("tf"):
                         return tf.random.uniform(shape=[(2**depth - 1) * (n_attributes + 1)], minval=-1, maxval=1)
                     else:
                         return vt.generate_random_weights(n_attributes, depth)
 
                 def check_bounds(self, solution):
-                    if args["evaluation_scheme"] == "tensorflow":
+                    if args["evaluation_scheme"].startswith("tf"):
                         return tf.clip_by_value(solution, -1, 1)
                     else:
                         return np.clip(solution.copy(), -1, 1)
@@ -340,7 +337,7 @@ if __name__ == "__main__":
             if not args["dataset"].startswith("artificial"):
                 args['initial_pop'] = None if args['initial_pop'] == 'None' else args['initial_pop']
                 initial_pop = get_initial_pop(data_config, popsize, X_train, y_train,
-                                            args["should_cart_init"], args["depth"], args["initial_pop"], objfunc)
+                                              args["should_cart_init"], args["depth"], args["initial_pop"], objfunc)
 
                 if initial_pop is not None:
                     c.population.population = []
@@ -354,6 +351,9 @@ if __name__ == "__main__":
 
             # Running CRO-DT
             start_time = time.time()
+            c.data = (X_t, Y_t, Mt, depth, n_attributes, n_classes)
+            c.evaluation_scheme = args["evaluation_scheme"]
+
             _, fit = c.optimize()
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -364,53 +364,16 @@ if __name__ == "__main__":
                 c.display_report(show_plots=False, filename=report_filename)
                 print(f"Saved report figure to '{report_filename}'.")
 
-            # Filter final solution based on validation set
-            if args["should_get_best_from_validation"]:
-                final_corals = [coral for coral in c.population.population]
-                final_corals.sort(key=lambda x: x.fitness, reverse=True)
-                aux = []
-                fitnesses = []
-                for coral in final_corals:
-                    if coral.fitness in fitnesses:
-                        continue
-                    aux.append(coral)
-                    fitnesses.append(coral.fitness)
-                final_corals = aux
-                final_corals = final_corals[:int(popsize * 0.1)] if len(final_corals) > popsize * 0.1 else final_corals
-                for i, coral in enumerate(final_corals[:25]):
-                    print(f"Coral #{i + 1}: (train: {coral.fitness})")
-
-                X_val_ = np.vstack((np.ones(len(X_val)).T, X_val.T)).T
-                Y_val_ = np.tile(y_val, (2 ** depth, 1))
-                for coral in final_corals:
-                    W = get_W_from_solution(coral.solution, depth, n_attributes, args)
-
-                    accuracy, _ = vt.dt_matrix_fit_dx(X_val, y_val, W, depth, n_classes, X_val_, Y_val_, M)
-
-                    if args["univariate"]:
-                        coral.val_fitness = accuracy
-                    else:
-                        penalty = vt.get_penalty(W, max_penalty, alpha=args["alpha"],
-                                                 should_normalize_rows=args["should_normalize_rows"], \
-                                                 should_normalize_penalty=args["should_normalize_penalty"], \
-                                                 should_apply_exp=args["should_apply_exponential"])
-                        coral.val_fitness = accuracy - penalty
-
-                final_corals.sort(key=lambda x: x.val_fitness, reverse=True)
-                for i, coral in enumerate(final_corals):
-                    print(f"Coral #{i + 1}: (train: {coral.fitness}, val: {coral.val_fitness})")
-
-                multiv_W = final_corals[0].solution
-            else:
-                multiv_W, _ = c.population.best_solution()
-
             # Post-process returned model from CRO-DT
-            if args["evaluation_scheme"] == "tensorflow":
+            multiv_W, _ = c.population.best_solution()
+            if args["evaluation_scheme"].startswith("tf"):
                 multiv_W = multiv_W.numpy()
             multiv_W = multiv_W.reshape((2 ** depth - 1, n_attributes + 1))
+
             if args["should_use_threshold"]:
                 multiv_W[:, 1:][abs(multiv_W[:, 1:]) < args["threshold"]] = 0
                 multiv_W[:, 0][multiv_W[:, 0] == 0] += 0.01
+
             univ_W = vt.get_W_as_univariate(multiv_W)
             if args["univariate"]:
                 multiv_W = vt.get_W_as_univariate(univ_W)
