@@ -78,9 +78,6 @@ def get_initial_pop(data_config, popsize, X_train, y_train,
 
 
 def get_W_from_solution(solution, depth, n_attributes, args):
-    # if args["evaluation_scheme"].startswith("tf") and args["evaluation_scheme"] != "tf_batch":
-    #     W = tf.cast(tf.reshape(solution, [2 ** depth - 1, n_attributes + 1]), dtype=tf.float64)
-    # else:
     W = solution.reshape((2 ** depth - 1, n_attributes + 1))
 
     if args["univariate"]:

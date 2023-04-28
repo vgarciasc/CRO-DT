@@ -69,7 +69,6 @@ def dt_matrix_fit_batch_nb(X, _, W_total, depth, n_classes, X_, Y_, M, N, n_leav
 
     return accuracy, labels
 
-@tf.function
 def dt_matrix_fit_batch_univariate_nb(solutions, X_train_, Y_train_, depth, n_classes, M, N, batch_size):
     W_batch = tf.reshape(tf.convert_to_tensor(solutions, dtype=tf.float64), (len(solutions), 2 ** depth - 1, -1))
 
@@ -83,7 +82,6 @@ def dt_matrix_fit_batch_univariate_nb(solutions, X_train_, Y_train_, depth, n_cl
                                            X_train_, Y_train_, M, N, 2 ** depth, batch_size)
     return accuracies
 
-@tf.function
 def dt_matrix_fit_batch_multivariate_nb(solutions, X_train_, Y_train_, depth, n_classes, M, N, batch_size):
     W_batch = tf.reshape(tf.convert_to_tensor(solutions, dtype=tf.float64), (len(solutions), 2 ** depth - 1, -1))
 
