@@ -23,3 +23,5 @@ Concerning optional parameters:
 - `--univariate`: True or False. Determines if the trained trees will be univariate or multivariate.
 
 There are more parameters, but they are all optional and involve things that were tested with during our investigation. You may safely ignore them.
+
+For comparing the running times between different fitness evaluation schemes, please use the `measure_time_perf.py` script. It removes excess computations to properly compute the running time of each scheme.
