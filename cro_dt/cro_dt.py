@@ -24,8 +24,6 @@ from cro_dt.utils import printv
 import cro_dt.VectorTree as vt
 # import cro_dt.CupyTree as cp
 import cro_dt.TensorflowTree as tft
-import cro_dt.cythonfns.TreeEvalPython as pyt
-import cro_dt.MatrixTree as mt
 import cro_dt.cythonfns.TreeEvaluation as cy
 from cro_dt.sup_configs import get_config, load_dataset, artificial_dataset_list, real_dataset_list
 from cro_dt.cart import get_cart_as_W
@@ -80,10 +78,10 @@ def get_initial_pop(data_config, popsize, X_train, y_train,
 
 
 def get_W_from_solution(solution, depth, n_attributes, args):
-    if args["evaluation_scheme"].startswith("tf"):
-        W = tf.cast(tf.reshape(solution, [2 ** depth - 1, n_attributes + 1]), dtype=tf.float64)
-    else:
-        W = solution.reshape((2 ** depth - 1, n_attributes + 1))
+    # if args["evaluation_scheme"].startswith("tf") and args["evaluation_scheme"] != "tf_batch":
+    #     W = tf.cast(tf.reshape(solution, [2 ** depth - 1, n_attributes + 1]), dtype=tf.float64)
+    # else:
+    W = solution.reshape((2 ** depth - 1, n_attributes + 1))
 
     if args["univariate"]:
         W = vt.get_W_as_univariate(W)
@@ -269,10 +267,6 @@ if __name__ == "__main__":
             Y_t = tf.convert_to_tensor(Y_train_ + 1, dtype=tf.int32)
             Mt = tf.convert_to_tensor(M, dtype=tf.int32)
 
-            if args["evaluation_scheme"] in ["tensorflow", "tensorflow_cpu", "tensorflow_total"]:
-                X_train_ = tf.convert_to_tensor(X_train_, dtype=tf.float64)
-                Y_train_ = tf.convert_to_tensor(Y_train_, dtype=tf.int32)
-
             print("=" * 50)
             print(
                 f"[red]Iteration {simulation}/{args['simulations']}[/red] [yellow](dataset: {data_config['name']}, {dataset_id}/{len(data_configs)}):[/yellow]")
@@ -296,7 +290,7 @@ if __name__ == "__main__":
                         attributes = np.array([i for w in W for i, val in enumerate(w) if val != 0 and i != 0])
                         thresholds = np.array([(w[0] / val if val < 0 else - w[0] / val) for w in W for i, val in enumerate(w) if val != 0 and i != 0])
                         inversions = np.array([(-1 if val < 0 else 1) for w in W for i, val in enumerate(w) if val != 0 and i != 0], dtype=np.int64)
-                        accuracy, _ = pyt.dt_tree_fit(X_train_, y_train, W, depth, n_classes, attributes, thresholds, inversions)
+                        accuracy, _ = cy.dt_tree_fit(X_train_, y_train, W, depth, n_classes, attributes, thresholds, inversions)
 
                     elif self.algo == "matrix":
                         accuracy, _ = vt.dt_matrix_fit_paper(X_train, y_train, W, depth, n_classes, X_train_, Y_train_, M)
@@ -318,16 +312,16 @@ if __name__ == "__main__":
                         return accuracy - penalty
 
                 def random_solution(self):
-                    if args["evaluation_scheme"].startswith("tf"):
-                        return tf.random.uniform(shape=[(2**depth - 1) * (n_attributes + 1)], minval=-1, maxval=1)
-                    else:
-                        return vt.generate_random_weights(n_attributes, depth)
+                    # if args["evaluation_scheme"].startswith("tf"):
+                    #     return tf.random.uniform(shape=[(2**depth - 1) * (n_attributes + 1)], minval=-1, maxval=1)
+                    # else:
+                    return vt.generate_random_weights(n_attributes, depth)
 
                 def check_bounds(self, solution):
-                    if args["evaluation_scheme"].startswith("tf"):
-                        return tf.clip_by_value(solution, -1, 1)
-                    else:
-                        return np.clip(solution.copy(), -1, 1)
+                    # if args["evaluation_scheme"].startswith("tf") and args["evaluation_scheme"] != "tf_batch":
+                    #     return tf.clip_by_value(solution, -1, 1)
+                    # else:
+                    return np.clip(solution.copy(), -1, 1)
 
             sol_size = len(vt.generate_random_weights(n_attributes, depth).flatten())
             objfunc = SupervisedObjectiveFunc(sol_size)
@@ -350,12 +344,13 @@ if __name__ == "__main__":
                 print(f"Best accuracy in CART seeding: {np.max([f.fitness for f in c.population.population])}")
 
             # Running CRO-DT
-            start_time = time.time()
+            start_time = time.perf_counter()
             c.data = (X_t, Y_t, Mt, depth, n_attributes, n_classes)
             c.evaluation_scheme = args["evaluation_scheme"]
+            c.is_univariate = args["univariate"]
 
             _, fit = c.optimize()
-            end_time = time.time()
+            end_time = time.perf_counter()
             elapsed_time = end_time - start_time
 
             # Save reports to disk
@@ -366,8 +361,6 @@ if __name__ == "__main__":
 
             # Post-process returned model from CRO-DT
             multiv_W, _ = c.population.best_solution()
-            if args["evaluation_scheme"].startswith("tf"):
-                multiv_W = multiv_W.numpy()
             multiv_W = multiv_W.reshape((2 ** depth - 1, n_attributes + 1))
 
             if args["should_use_threshold"]:

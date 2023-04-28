@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 import numpy as np
 import cro_dt.VectorTree as vt
 import tensorflow as tf
@@ -66,10 +69,24 @@ def dt_matrix_fit_batch_nb(X, _, W_total, depth, n_classes, X_, Y_, M, N, n_leav
 
     return accuracy, labels
 
-def dt_matrix_fit_wrapped(X, _, W, depth, n_classes, X_, Y_, M):
-    with tf.device("/GPU:0"):
-        return dt_matrix_fit(X, _, W, depth, n_classes, X_, Y_, M)
+@tf.function
+def dt_matrix_fit_batch_univariate_nb(solutions, X_train_, Y_train_, depth, n_classes, M, N, batch_size):
+    W_batch = tf.reshape(tf.convert_to_tensor(solutions, dtype=tf.float64), (len(solutions), 2 ** depth - 1, -1))
 
-def dt_matrix_fit_cpu_wrapped(X, _, W, depth, n_classes, X_, Y_, M):
-    with tf.device("/CPU:0"):
-        return dt_matrix_fit(X, _, W, depth, n_classes, X_, Y_, M)
+    W_thresholds = tf.expand_dims(tf.gather(W_batch, 0, axis=2), 2)
+    W_attrs = tf.slice(W_batch, [0, 0, 1], [W_batch.shape[0], W_batch.shape[1], W_batch.shape[2] - 1])
+    W_attrs_abs = tf.abs(W_attrs)
+    W_attrs_max_mask = tf.equal(W_attrs_abs, tf.expand_dims(tf.reduce_max(W_attrs_abs, axis=2), 2))
+    W_univ_batch = tf.concat([W_thresholds, tf.where(W_attrs_max_mask, W_attrs, 0)], axis=2)
+
+    accuracies, _ = dt_matrix_fit_batch_nb(None, None, W_univ_batch, depth, n_classes,
+                                           X_train_, Y_train_, M, N, 2 ** depth, batch_size)
+    return accuracies
+
+@tf.function
+def dt_matrix_fit_batch_multivariate_nb(solutions, X_train_, Y_train_, depth, n_classes, M, N, batch_size):
+    W_batch = tf.reshape(tf.convert_to_tensor(solutions, dtype=tf.float64), (len(solutions), 2 ** depth - 1, -1))
+
+    accuracies, _ = dt_matrix_fit_batch_nb(None, None, W_batch, depth, n_classes,
+                                           X_train_, Y_train_, M, N, 2 ** depth, batch_size)
+    return accuracies

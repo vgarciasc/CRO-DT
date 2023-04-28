@@ -24,56 +24,61 @@ def plot_time_perf(time_measures):
     if height > 1:
         axs[-1, -1].axis('off')
 
-    dataset_idx = -1
-    for (dataset, data) in time_measures.items():
-        dataset_idx += 1
-
+    for dataset_idx, (dataset, data) in enumerate(time_measures.items()):
         if height > 1:
             ax = axs[dataset_idx // width, dataset_idx % width]
         else:
             ax = axs[dataset_idx]
 
-        get_avg = lambda algo : np.array([np.mean(data[f'depth_{d}'][algo]) for d in range(2, 2 + len(data)) if algo in data[f'depth_{d}'].keys()])
-        get_std = lambda algo : np.array([np.std(data[f'depth_{d}'][algo]) for d in range(2, 2 + len(data)) if algo in data[f'depth_{d}'].keys()])
+        get_avg = lambda algo : np.array([np.mean(data[f'depth_{d}'][algo]) for d in range(2, min(2 + len(data), 8)) if algo in data[f'depth_{d}'].keys()])
+        get_std = lambda algo : np.array([np.std(data[f'depth_{d}'][algo]) for d in range(2, min(2 + len(data), 8)) if algo in data[f'depth_{d}'].keys()])
         algorithms = data['depth_2'].keys()
 
-        if 'tree' in algorithms:
-            tree_avgs, tree_stds = get_avg('tree'), get_std('tree')
-            ax.plot(range(2, len(tree_avgs) + 2), tree_avgs, marker="*", label="Traditional encoding (Python)", color="red")
-            ax.fill_between(range(2, len(tree_avgs) + 2), tree_avgs - tree_stds, tree_avgs + tree_stds, color="red", alpha=0.2)
+        tree_displayed = False
+        matrix_displayed = False
 
-        if 'matrix' in algorithms:
-            matrix_avgs, matrix_stds = get_avg('matrix'), get_std('matrix')
-            ax.plot(range(2, len(matrix_avgs) + 2), matrix_avgs, marker="*", label="Proposed encoding (NumPy)", color="blue")
-            ax.fill_between(range(2, len(matrix_avgs) + 2), matrix_avgs - matrix_stds, matrix_avgs + matrix_stds, color="blue", alpha=0.2)
+        # if 'tree' in algorithms:
+        #     tree_avgs, tree_stds = get_avg('tree'), get_std('tree')
+        #     ax.plot(range(2, len(tree_avgs) + 2), tree_avgs, marker="*", label="Traditional encoding (Python)", color="red")
+        #     ax.fill_between(range(2, len(tree_avgs) + 2), tree_avgs - tree_stds, tree_avgs + tree_stds, color="red", alpha=0.2)
+        #     tree_displayed = True
+
+        # if 'matrix' in algorithms:
+        #     matrix_avgs, matrix_stds = get_avg('matrix'), get_std('matrix')
+        #     ax.plot(range(2, len(matrix_avgs) + 2), matrix_avgs, marker="*", label="Proposed encoding (NumPy)", color="blue")
+        #     ax.fill_between(range(2, len(matrix_avgs) + 2), matrix_avgs - matrix_stds, matrix_avgs + matrix_stds, color="blue", alpha=0.2)
+        #     matrix_displayed = True
 
         if 'cytree' in algorithms:
+            color = "orange" if tree_displayed else "red"
             cytree_avgs, cytree_stds = get_avg('cytree'), get_std('cytree')
-            ax.plot(range(2, len(cytree_avgs) + 2), cytree_avgs, marker="o", label="Traditional encoding (C)", color="orange")
+            ax.plot(range(2, len(cytree_avgs) + 2), cytree_avgs, marker="*", label="Traditional encoding (C)", color=color, zorder=-19)
             ax.fill_between(range(2, len(cytree_avgs) + 2), cytree_avgs - cytree_stds, cytree_avgs + cytree_stds,
-                            color="orange", alpha=0.2)
-
-        # if 'tf' in algorithms:
-        #     tf_avgs, tf_stds = get_avg('tf'), get_std('tf')
-        #     ax.plot(range(2, len(tf_avgs) + 2), tf_avgs, marker="s", label="Proposed encoding (TF)", color="green")
-        #     ax.fill_between(range(2, len(tf_avgs) + 2), tf_avgs - tf_stds, tf_avgs + tf_stds, color="green", alpha=0.2)
-
-        if 'tf_batch' in algorithms:
-            tf_batch_avgs, tf_batch_stds = get_avg('tf_batch'), get_std('tf_batch')
-            ax.plot(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs, marker="s", label="Proposed encoding (TF batch)", color="cyan")
-            ax.fill_between(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs - tf_batch_stds, tf_batch_avgs + tf_batch_stds, color="cyan", alpha=0.2)
-
-        if 'tf_batch_cpu' in algorithms:
-            tf_batch_avgs, tf_batch_stds = get_avg('tf_batch_cpu'), get_std('tf_batch_cpu')
-            ax.plot(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs, marker="s", label="Proposed encoding (TF batch CPU)", color="magenta")
-            ax.fill_between(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs - tf_batch_stds, tf_batch_avgs + tf_batch_stds, color="magenta", alpha=0.2)
+                            color=color, alpha=0.2)
 
         if 'tf_cpu' in algorithms:
             tf_batch_avgs, tf_batch_stds = get_avg('tf_cpu'), get_std('tf_cpu')
-            ax.plot(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs, marker="s", label="Proposed encoding (TF CPU)", color="navy")
-            ax.fill_between(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs - tf_batch_stds, tf_batch_avgs + tf_batch_stds, color="navy", alpha=0.2)
+            ax.plot(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs, marker="o", label="Proposed encoding (Iterative CPU)", color="lime", zorder=-1)
+            ax.fill_between(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs - tf_batch_stds, tf_batch_avgs + tf_batch_stds, color="lime", alpha=0.2)
 
-        ax.set_title(dataset)
+        if 'tf' in algorithms:
+            tf_avgs, tf_stds = get_avg('tf'), get_std('tf')
+            ax.plot(range(2, len(tf_avgs) + 2), tf_avgs, marker="v", label="Proposed encoding (Iterative GPU)", color="green")
+            ax.fill_between(range(2, len(tf_avgs) + 2), tf_avgs - tf_stds, tf_avgs + tf_stds, color="green", alpha=0.2)
+
+        if 'tf_batch_cpu' in algorithms:
+            color = "green" if matrix_displayed else "dodgerblue"
+            tf_batch_avgs, tf_batch_stds = get_avg('tf_batch_cpu'), get_std('tf_batch_cpu')
+            ax.plot(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs, marker="D", label="Proposed encoding (Batch CPU)", color=color, zorder=-2)
+            ax.fill_between(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs - tf_batch_stds, tf_batch_avgs + tf_batch_stds, color=color, alpha=0.2)
+
+        if 'tf_batch' in algorithms:
+            color = "lime" if matrix_displayed else "blue"
+            tf_batch_avgs, tf_batch_stds = get_avg('tf_batch'), get_std('tf_batch')
+            ax.plot(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs, marker="s", label="Proposed encoding (Batch GPU)", color=color)
+            ax.fill_between(range(2, len(tf_batch_avgs) + 2), tf_batch_avgs - tf_batch_stds, tf_batch_avgs + tf_batch_stds, color=color, alpha=0.2)
+
+        ax.set_title(f"Artificial_{dataset_idx + 1}\n(N={dataset.split('_')[0]}, C={dataset.split('_')[1]}, P={dataset.split('_')[2]})")
         ax.set_yscale("log")
 
         if dataset_idx >= 1 * 4 or dataset_idx == 3:
@@ -90,15 +95,15 @@ def plot_time_perf(time_measures):
         axs[0].set_ylabel("Training time (s)")
 
     plt.subplots_adjust(top=0.917,
-                        bottom=0.137,
+                        bottom=0.076,
                         left=0.066,
-                        right=0.986,
-                        hspace=0.276,
+                        right=0.955,
+                        hspace=0.348,
                         wspace=0.244)
     plt.show()
 
 if __name__ == "__main__":
-    with open("results/time_measures_n100g100s10.json", "r") as f:
+    with open("results/full5_n100g100s5.json", "r") as f:
         time_measures = json.load(f)
 
     plot_time_perf(time_measures)

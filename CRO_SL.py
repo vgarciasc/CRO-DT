@@ -337,10 +337,15 @@ class CRO_SL:
 
     def calculate_fitness_tf_batch(self, corals):
         X_train_, Y_train_, M, depth, n_attributes, n_classes = self.data
-        W_total = tf.convert_to_tensor([tf.reshape(i.solution, [2 ** depth - 1, n_attributes + 1]) for i in corals],
-                                       dtype=tf.float64)
-        accuracies, _ = tft.dt_matrix_fit_batch_nb(None, None, W_total, depth, n_classes, X_train_, Y_train_, M,
-                                                   len(X_train_), 2 ** depth, len(W_total))
+
+        solutions = [i.solution for i in corals]
+        if self.is_univariate:
+            accuracies = tft.dt_matrix_fit_batch_univariate_nb(solutions, X_train_, Y_train_, depth,
+                                                               n_classes, M, len(X_train_), len(corals)).numpy()
+        else:
+            accuracies = tft.dt_matrix_fit_batch_multivariate_nb(solutions, X_train_, Y_train_, depth,
+                                                                 n_classes, M, len(X_train_), len(corals)).numpy()
+
         for coral, accuracy in zip(corals, accuracies):
             coral.fitness_calculated = True
             coral.fitness = accuracy

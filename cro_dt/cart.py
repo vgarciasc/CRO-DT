@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 import json
 import pdb
 import numpy as np

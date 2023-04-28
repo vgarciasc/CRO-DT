@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 import pdb
 import numpy as np
 from functools import reduce
@@ -477,7 +480,6 @@ def calc_accuracy(X, y, W, labels):
     acc = np.mean([(1 if y_pred_i == y_i else 0) for y_pred_i, y_i in zip(y, y_pred)])
 
     return acc
-
 
 def get_W_as_univariate(multiv_W):
     b = np.copy(multiv_W)

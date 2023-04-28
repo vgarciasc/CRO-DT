@@ -270,7 +270,6 @@ class CoralPopulation:
 
         return prob
 
-
     """
     Generates the assignment of the substrates
     """
@@ -306,7 +305,6 @@ class CoralPopulation:
             for idx, coral in enumerate(self.population):
                 substrate_idx = self.substrate_list[idx]
                 coral.set_substrate(self.substrates[substrate_idx])
-
 
     """
     Inserts solutions into our reef with some conditions
