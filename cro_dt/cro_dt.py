@@ -232,6 +232,9 @@ if __name__ == "__main__":
         X, y = load_dataset(data_config)
         N = len(X)
 
+        if args["evaluation_scheme"] == "tf_batch":
+            y += 1
+
         n_attributes = data_config["n_attributes"]
         n_classes = data_config["n_classes"]
         max_penalty = (n_attributes - 1) * (2 ** depth - 1)
@@ -261,7 +264,7 @@ if __name__ == "__main__":
             Y_train_ = np.tile(y_train, (2 ** depth, 1))
             Xt = tf.convert_to_tensor(X_train, dtype=tf.float64)
             X_t = tf.convert_to_tensor(X_train_, dtype=tf.float64)
-            Y_t = tf.convert_to_tensor(Y_train_ + 1, dtype=tf.int32)
+            Y_t = tf.convert_to_tensor(Y_train_, dtype=tf.int32)
             Mt = tf.convert_to_tensor(M, dtype=tf.int32)
 
             print("=" * 50)

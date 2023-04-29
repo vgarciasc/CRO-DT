@@ -74,9 +74,8 @@ def dt_matrix_fit_batch_univariate_nb(solutions, X_train_, Y_train_, depth, n_cl
 
     W_thresholds = tf.expand_dims(tf.gather(W_batch, 0, axis=2), 2)
     W_attrs = tf.slice(W_batch, [0, 0, 1], [W_batch.shape[0], W_batch.shape[1], W_batch.shape[2] - 1])
-    W_attrs_abs = tf.abs(W_attrs)
-    W_attrs_max_mask = tf.equal(W_attrs_abs, tf.expand_dims(tf.reduce_max(W_attrs_abs, axis=2), 2))
-    W_univ_batch = tf.concat([W_thresholds, tf.where(W_attrs_max_mask, W_attrs, 0)], axis=2)
+    W_attrs_max = tf.multiply(tf.cast(tf.one_hot(tf.argmax(tf.abs(W_attrs), axis=2), 2), dtype=tf.float64), W_attrs)
+    W_univ_batch = tf.concat([W_thresholds, W_attrs_max], axis=2)
 
     accuracies, _ = dt_matrix_fit_batch_nb(None, None, W_univ_batch, depth, n_classes,
                                            X_train_, Y_train_, M, N, 2 ** depth, batch_size)
