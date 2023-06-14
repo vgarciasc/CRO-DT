@@ -1,6 +1,7 @@
 import os
 import pdb
 import argparse
+import time
 from datetime import datetime
 
 import cma
@@ -25,12 +26,13 @@ console = Console()
 
 def save_log_to_file(filename, log, prefix=""):
     output_str = prefix
-    for (dataset, accuracies_in, accuracies_out, trees, tree_sizes) in log:
+    for (dataset, accuracies_in, accuracies_out, trees, tree_sizes, times_elapsed) in log:
         output_str += f"Dataset '{dataset}':\n"
         output_str += f"  {len(accuracies_in)} simulations executed.\n"
         output_str += f"  Average training accuracy: {'{:.1f}'.format(np.mean(accuracies_in) * 100).replace('.', ',')} ± {'{:.1f}'.format(np.std(accuracies_in) * 100).replace('.', ',')}\n"
         output_str += f"  Average testing accuracy: {'{:.1f}'.format(np.mean(accuracies_out) * 100).replace('.', ',')} ± {'{:.1f}'.format(np.std(accuracies_out) * 100).replace('.', ',')}\n"
         output_str += f"  Average tree size: {'{:.1f}'.format(np.mean(tree_sizes)).replace('.', ',')} ± {'{:.1f}'.format(np.std(tree_sizes)).replace('.', ',')}\n"
+        output_str += f"  Average time elapsed: {'{:.1f}'.format(np.mean(times_elapsed)).replace('.', ',')} ± {'{:.1f}'.format(np.std(times_elapsed)).replace('.', ',')}\n"
         output_str += f"  Max tree size: {np.max(tree_sizes)}\n"
         output_str += "-------\n\n"
 
@@ -134,6 +136,7 @@ if __name__ == "__main__":
         accuracies_out = []
         trees = []
         tree_sizes = []
+        times_elapsed = []
 
         # read the dataset
         df = pd.read_csv(f"cro_dt/experiments/data/{dataset}.csv")
@@ -150,7 +153,9 @@ if __name__ == "__main__":
 
             # fit CMA
             max_rules = 2 ** (args['depth']) - 1
+            tik = time.perf_counter()
             model = run_CMA(config, X_train, y_train, args['depth'], n_evals=args['n_evals'])
+            time_elapsed = time.perf_counter() - tik
 
             # look at performance
             train_acc = evaluate_once(config, model, X_train, y_train, args['depth'])
@@ -160,7 +165,8 @@ if __name__ == "__main__":
             accuracies_out.append(test_acc)
             trees.append(model)
             tree_sizes.append(model.num_nodes)
-            log[-1] = (dataset, accuracies_in, accuracies_out, trees, tree_sizes)
+            times_elapsed.append(time_elapsed)
+            log[-1] = (dataset, accuracies_in, accuracies_out, trees, tree_sizes, times_elapsed)
 
             if args["verbose"]:
                 print(
