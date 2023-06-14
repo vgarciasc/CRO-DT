@@ -35,7 +35,7 @@ config_BN = {
     "filepath": "datasets/data_banknote_authentication.txt",
     "n_attributes": 4,
     "attributes": ["variance", "skewness", "curtosis", "entropy"],
-    "n_classes": 4,
+    "n_classes": 2,
     "classes": [(0, "Authentic"), (1, "Forged")]
 }
 
