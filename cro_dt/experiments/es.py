@@ -60,7 +60,7 @@ def run_es(dataset, lamb, mu, n_gens, depth, simulation_id=0, max_gens_wout_impr
 
             progress.update(task, advance=1, description=f"Running ES... Simulation {simulation_id} // "
                                                          f"Generation {curr_gen} "
-                                                         f"(last improv. {last_improvement_gen_id}) //"
+                                                         f"(last improv. {last_improvement_gen_id}) // "
                                                          f"Best fitness: {'{:.5f}'.format(best_fitness)}")
 
     print("\nBest tree:\n")

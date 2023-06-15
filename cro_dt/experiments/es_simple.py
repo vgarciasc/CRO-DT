@@ -136,7 +136,7 @@ if __name__ == "__main__":
                 # print(model.tree)
 
             if args["should_save"]:
-                save_log_to_file(f"log_cma_d{args['depth']}_{curr_time}.txt", log, command_line)
+                save_log_to_file(f"log_simpleES_d{args['depth']}_{curr_time}.txt", log, command_line)
 
         print("--------------------------")
         print(f"[yellow]Dataset {dataset}:[/yellow]")
