@@ -35,6 +35,25 @@ cdef int get_leaf_index(np.ndarray[np.double_t, ndim=1] X,
 
     return leaf_idx
 
+def get_leaf_simple(np.ndarray[np.double_t, ndim=1] x,
+                    np.ndarray[Py_ssize_t, ndim=1] attributes,
+                    np.ndarray[np.double_t, ndim=1] thresholds,
+                    int depth):
+
+    cdef Py_ssize_t curr_depth = depth - 1
+    cdef Py_ssize_t node_idx = 0
+    cdef Py_ssize_t leaf_idx = 0
+
+    while curr_depth >= 0:
+        if x[attributes[node_idx]] <= thresholds[node_idx]:
+            node_idx += 1
+        else:
+            node_idx += 2 ** curr_depth
+            leaf_idx += 2 ** curr_depth
+        curr_depth -= 1
+
+    return leaf_idx
+
 # # Same as "sum(np.max(np.array(count), axis=1)) / X.shape[0]", re-written in Cython
 # cdef get_accuracy(np.ndarray[np.double_t, ndim=2] count, int n_samples):
 #     cdef int n_leaves = count.shape[0]
