@@ -17,6 +17,9 @@ def run_es(dataset, X_train, y_train, X_test, y_test,
 
     # population = [Tree.generate_random_tree(config, depth) for _ in range(lamb)]
     population = [TreeFlat.generate_random(config, depth) for _ in range(lamb)]
+    for individual in population:
+        individual.update_labels(X_train, y_train)
+        individual.fitness = individual.evaluate(X_train, y_train)
 
     last_improvement_gen_id = 0
     best_fitness = -1
@@ -32,9 +35,6 @@ def run_es(dataset, X_train, y_train, X_test, y_test,
                 break
 
             for individual in population:
-                individual.update_labels(X_train, y_train)
-                individual.fitness = individual.evaluate(X_train, y_train)
-
                 if individual.fitness > best_fitness:
                     best_fitness = individual.fitness
                     best_tree = individual
@@ -42,15 +42,17 @@ def run_es(dataset, X_train, y_train, X_test, y_test,
 
             population.sort(key=lambda x: x.fitness, reverse=True)
             parents = population[:mu]
-            child_population = parents + []
+            child_population = []
 
             for parent in parents:
                 for _ in range(lamb // mu):
                     child = parent.copy()
                     child.mutate()
+                    child.update_labels(X_train, y_train)
+                    child.fitness = child.evaluate(X_train, y_train)
                     child_population.append(child)
 
-            population = child_population
+            population = parents + child_population
 
             progress.update(task, advance=1, description=f"Running ES... Simulation {simulation_id} // "
                                                          f"Generation {curr_gen} "
@@ -72,4 +74,13 @@ if __name__ == "__main__":
     depth = 2
     dataset = "breast_cancer"
 
-    run_es(dataset, lamb, mu, n_generations, depth)
+    df = pd.read_csv(f"cro_dt/experiments/data/{dataset}.csv")
+    feat_names = df.columns[:-1]
+    X, y = df.iloc[:, :-1].values, df.iloc[:, -1].values
+    X = X.astype(np.float64)
+    y = y.astype(np.int64)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=2, stratify=y)
+    X_test, _, y_test, _ = train_test_split(X_test, y_test, test_size=0.5, random_state=2, stratify=y_test)
+
+    run_es(dataset, X_train, y_train, X_test, y_test, lamb, mu, n_generations, depth)
