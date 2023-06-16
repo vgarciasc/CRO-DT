@@ -113,7 +113,8 @@ if __name__ == "__main__":
             # fit CMA
             max_rules = 2 ** (args['depth']) - 1
             tik = time.perf_counter()
-            model = run_es(dataset, args['lambda'], args['mu'], args['n_gens'], args['depth'], simulation_id=simulation)
+            model = run_es(dataset, X_train, y_train, X_test, y_test,
+                           args['lambda'], args['mu'], args['n_gens'], args['depth'], simulation_id=simulation)
             time_elapsed = time.perf_counter() - tik
 
             # look at performance

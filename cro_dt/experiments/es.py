@@ -10,15 +10,9 @@ import pandas as pd
 from rich.progress import track, Progress
 
 
-def run_es(dataset, lamb, mu, n_gens, depth, simulation_id=0, max_gens_wout_improvement=100):
+def run_es(dataset, X_train, y_train, X_test, y_test,
+           lamb, mu, n_gens, depth, simulation_id=0, max_gens_wout_improvement=100):
     config = get_config(dataset)
-    df = pd.read_csv(f"cro_dt/experiments/data/{dataset}.csv")
-    X, y = df.iloc[:, :-1].values, df.iloc[:, -1].values
-    X = X.astype(np.float64)
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0, stratify=y)
-    X_test, _, y_test, _ = train_test_split(X_test, y_test, test_size=0.5, random_state=0, stratify=y_test)
-
     config["attributes_metadata"] = [(np.min(X_i), np.max(X_i)) for X_i in np.transpose(X_train.astype(np.float32))]
 
     # population = [Tree.generate_random_tree(config, depth) for _ in range(lamb)]
