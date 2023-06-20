@@ -53,6 +53,8 @@ if __name__ == "__main__":
                         type=lambda x: (str(x).lower() == 'true'))
     parser.add_argument('--should_save', help='Should write?', required=False, default=True,
                         type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument('--start_from', help='Start from?', required=False, default=0, type=int)
+    parser.add_argument('--n_jobs', help='Number of jobs?', required=False, default=1, type=int)
     args = vars(parser.parse_args())
 
     # create ID
@@ -104,7 +106,7 @@ if __name__ == "__main__":
 
         log.append(())
 
-        for simulation in range(args["simulations"]):
+        for simulation in range(args['start_from'], args["simulations"]):
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=simulation,
                                                                 stratify=y)
             X_test, _, y_test, _ = train_test_split(X_test, y_test, test_size=0.5, random_state=simulation,
@@ -114,7 +116,7 @@ if __name__ == "__main__":
             max_rules = 2 ** (args['depth']) - 1
             tik = time.perf_counter()
             model = run_es(dataset, X_train, y_train, X_test, y_test,
-                           args['lambda'], args['mu'], args['n_gens'], args['depth'], simulation_id=simulation)
+                       args['lambda'], args['mu'], args['n_gens'], args['depth'], simulation_id=simulation, n_jobs=args['n_jobs'])
             time_elapsed = time.perf_counter() - tik
 
             # look at performance

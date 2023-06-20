@@ -6,12 +6,20 @@ from cro_dt.experiments.es_tree2 import TreeFlat
 from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
+import joblib as jl
 
 from rich.progress import track, Progress
 
 
+def evaluate_population(X_train, y_train, population):
+    for individual in population:
+        individual.update_labels(X_train, y_train)
+        individual.fitness = individual.evaluate(X_train, y_train)
+    return population
+
 def run_es(dataset, X_train, y_train, X_test, y_test,
-           lamb, mu, n_gens, depth, simulation_id=0, max_gens_wout_improvement=100):
+           lamb, mu, n_gens, depth, simulation_id=0,
+           max_gens_wout_improvement=100, n_jobs=1):
     config = get_config(dataset)
     config["attributes_metadata"] = [(np.min(X_i), np.max(X_i)) for X_i in np.transpose(X_train.astype(np.float32))]
 
@@ -34,6 +42,10 @@ def run_es(dataset, X_train, y_train, X_test, y_test,
                     f"Stopping early at generation {curr_gen} (no improvement for {max_gens_wout_improvement} generations.")
                 break
 
+            population_par = jl.parallel.Parallel(n_jobs=n_jobs)(
+                jl.parallel.delayed(evaluate_population)(X_train, y_train, population[i::n_jobs]) for i in range(n_jobs))
+            population = [ind for sublist in population_par for ind in sublist]
+
             for individual in population:
                 if individual.fitness > best_fitness:
                     best_fitness = individual.fitness
@@ -48,8 +60,6 @@ def run_es(dataset, X_train, y_train, X_test, y_test,
                 for _ in range(lamb // mu):
                     child = parent.copy()
                     child.mutate()
-                    child.update_labels(X_train, y_train)
-                    child.fitness = child.evaluate(X_train, y_train)
                     child_population.append(child)
 
             population = parents + child_population
